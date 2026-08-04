@@ -1,4 +1,4 @@
-import { renderFiltered, canvasToBlob } from './filters.js';
+import { renderFilm, canvasToBlob } from './filters.js';
 
 const MAX_FULL = 1920; // longest edge of the stored full image (crisp, >1080p)
 const MAX_THUMB = 480; // longest edge of the album thumbnail / video poster
@@ -18,17 +18,13 @@ export function getAspect(id) {
   return ASPECTS.find((a) => a.id === id) || ASPECTS[0];
 }
 
-// Centre-crop rectangle of a sw×sh source to the target ratio.
 function cropRect(sw, sh, ratio) {
   if (!ratio) return { sx: 0, sy: 0, cw: sw, ch: sh };
   const srcRatio = sw / sh;
   let cw = sw;
   let ch = sh;
-  if (srcRatio > ratio) {
-    cw = Math.round(sh * ratio); // too wide → trim sides
-  } else {
-    ch = Math.round(sw / ratio); // too tall → trim top/bottom
-  }
+  if (srcRatio > ratio) cw = Math.round(sh * ratio);
+  else ch = Math.round(sw / ratio);
   return { sx: Math.round((sw - cw) / 2), sy: Math.round((sh - ch) / 2), cw, ch };
 }
 
@@ -38,26 +34,22 @@ function fit(w, h, max) {
 }
 
 /**
- * Render a source frame (video/image/canvas) into the two uploads: a crisp
- * full image and a small thumbnail. Crops to `ratio` (null = native frame) and
- * applies the retro `preset`. All on-device.
+ * From a source frame, produce the two uploads (crisp full + thumbnail),
+ * cropped to `ratio` and graded with `film` + adjustments (temp/exposure).
  */
-export async function produceImages(source, sw, sh, preset, ratio) {
+export async function produceImages(source, sw, sh, film, ratio, opts) {
   const { sx, sy, cw, ch } = cropRect(sw, sh, ratio);
-  const out = fit(cw, ch, MAX_FULL);
+  const outSize = fit(cw, ch, MAX_FULL);
 
-  // 1) crop + scale to a plain canvas
   const cropped = document.createElement('canvas');
-  cropped.width = out.w;
-  cropped.height = out.h;
-  cropped.getContext('2d').drawImage(source, sx, sy, cw, ch, 0, 0, out.w, out.h);
+  cropped.width = outSize.w;
+  cropped.height = outSize.h;
+  cropped.getContext('2d').drawImage(source, sx, sy, cw, ch, 0, 0, outSize.w, outSize.h);
 
-  // 2) apply filter + overlays
-  const fullCanvas = renderFiltered(cropped, out.w, out.h, out.w, out.h, preset);
+  const fullCanvas = renderFilm(cropped, outSize.w, outSize.h, film, opts);
   const fullBlob = await canvasToBlob(fullCanvas, FULL_Q);
 
-  // 3) thumbnail from the finished full canvas (same look, cheaper)
-  const t = fit(out.w, out.h, MAX_THUMB);
+  const t = fit(outSize.w, outSize.h, MAX_THUMB);
   const thumbCanvas = document.createElement('canvas');
   thumbCanvas.width = t.w;
   thumbCanvas.height = t.h;
@@ -67,13 +59,12 @@ export async function produceImages(source, sw, sh, preset, ratio) {
   return {
     fullBlob,
     thumbBlob,
-    width: out.w,
-    height: out.h,
+    width: outSize.w,
+    height: outSize.h,
     previewUrl: fullCanvas.toDataURL('image/jpeg', FULL_Q),
   };
 }
 
-// Load an image File/Blob into something drawable.
 async function loadImage(file) {
   if ('createImageBitmap' in window) {
     try {
@@ -90,20 +81,15 @@ async function loadImage(file) {
   });
 }
 
-/**
- * Build uploads from a photo the guest picked with their native camera / gallery.
- * Keeps the native frame, just downscales for delivery and makes a thumbnail.
- */
-export async function produceFromImageFile(file, preset) {
+/** Build uploads from a picked photo (native camera / gallery), graded too. */
+export async function produceFromImageFile(file, film, opts) {
   const img = await loadImage(file);
   const sw = img.width || img.naturalWidth;
   const sh = img.height || img.naturalHeight;
-  return produceImages(img, sw, sh, preset, null);
+  return produceImages(img, sw, sh, film, null, opts);
 }
 
-/**
- * Build a poster thumbnail + dimensions from a video Blob (first frame).
- */
+/** Poster thumbnail + dimensions from a video Blob (first frame). */
 export function videoPoster(blob) {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(blob);
@@ -127,13 +113,10 @@ export function videoPoster(blob) {
       resolve({ thumbBlob, width: sw, height: sh, duration: Math.round(video.duration) || null });
     };
     video.onloadeddata = () => {
-      // Seek a hair in so the frame isn't black.
       if (video.duration && video.currentTime < 0.1) {
         video.currentTime = Math.min(0.1, video.duration / 2);
         video.onseeked = done;
-      } else {
-        done();
-      }
+      } else done();
     };
     video.onerror = () => {
       URL.revokeObjectURL(url);
@@ -142,7 +125,6 @@ export function videoPoster(blob) {
   });
 }
 
-// Trigger a browser download so the guest keeps a copy on their own device.
 export function saveToDevice(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

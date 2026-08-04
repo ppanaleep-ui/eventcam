@@ -43,8 +43,11 @@ festival"; see **[SCALING.md](./SCALING.md)**.
   the album.
 - **Aspect ratios** — shoot Full / 1:1 / 4:5 / 9:16 with an on-screen framing
   guide; the review shows the true, uncropped frame.
-- **Retro film filters** — Classic, '90s (with date stamp), Noir, Sunwash light
-  leak, Polaroid frame — grain, vignette and warmth included.
+- **Film cameras (DAZZ-style)** — 11 authentic film looks (Classic, Golden,
+  Portra, Frost, Fade, '80s, Slide, Sunwash, VHS, Noir…) rendered per-pixel on
+  device: real tone curves, colour grading, highlight halation, fine grain,
+  vignette, light leaks, date stamp and scanlines. Plus a 35mm-style framing
+  guide, exposure + warmth sliders, and a 3s/10s self-timer.
 - **Use the real phone camera** — a one-tap option opens the device's native
   camera / gallery (full quality, native video) and uploads the result.
 - **Keep a copy** — save any shot to your own device as you post it.
