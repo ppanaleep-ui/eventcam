@@ -42,11 +42,15 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
   const [recSecs, setRecSecs] = useState(0);
   const [showAdjust, setShowAdjust] = useState(false);
   const [visible, setVisible] = useState(true); // show this upload to everyone?
+  const [leak, setLeak] = useState(0); // random light-leak amount 0..100
+  const [timestamp, setTimestamp] = useState('auto'); // auto | on | off
+  const [grid, setGrid] = useState(false); // rule-of-thirds overlay
+  const [lowLight, setLowLight] = useState(false);
 
   const film = getFilm(filmId);
   const aspect = getAspect(aspectId);
   const videoSupported = pickVideoMime() !== null;
-  const adjust = { temp, exposure };
+  const adjust = { temp, exposure, leak: leak / 100, stamp: timestamp };
   const cycleAspect = () => setAspectId((id) => {
     const i = ASPECTS.findIndex((a) => a.id === id);
     return ASPECTS[(i + 1) % ASPECTS.length].id;
@@ -81,6 +85,26 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
   }, [facing, mode, shot]);
 
   useEffect(() => () => { stopStream(); clearInterval(countRef.current); }, []);
+
+  // Low-light hint: sample the frame's average brightness periodically.
+  useEffect(() => {
+    if (camState !== 'live' || shot) return;
+    const c = document.createElement('canvas');
+    c.width = c.height = 16;
+    const cx = c.getContext('2d');
+    const id = setInterval(() => {
+      const v = videoRef.current;
+      if (!v || !v.videoWidth) return;
+      try {
+        cx.drawImage(v, 0, 0, 16, 16);
+        const d = cx.getImageData(0, 0, 16, 16).data;
+        let sum = 0;
+        for (let i = 0; i < d.length; i += 4) sum += 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+        setLowLight(sum / (d.length / 4) < 42);
+      } catch {}
+    }, 900);
+    return () => clearInterval(id);
+  }, [camState, shot]);
 
   function stopStream() {
     if (recorderRef.current && recorderRef.current.state !== 'inactive') {
@@ -302,6 +326,10 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
 
       {countdown !== null && <div className="countdown">{countdown}</div>}
       {recording && <div className="rec-badge"><span className="rec-dot" /> {String(recSecs).padStart(2, '0')}s / {MAX_VIDEO_SECS}s</div>}
+      {grid && camState === 'live' && <div className="cam-grid" aria-hidden="true" />}
+      {lowLight && camState === 'live' && mode === 'photo' && !countdown && (
+        <div className="lowlight-pill"><span /> Low Light</div>
+      )}
 
       {/* Top floating bar */}
       <div className="cam-top">
@@ -334,6 +362,22 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
             <span>🌡 อุ่น/เย็น {temp > 0 ? `+${temp}` : temp}</span>
             <input className="temp-slider" type="range" min="-100" max="100" step="5" value={temp} onChange={(e) => setTemp(Number(e.target.value))} />
           </label>
+          <label className="adjust">
+            <span>✨ แสงรั่ว (Light leak) {leak}%</span>
+            <input type="range" min="0" max="100" step="5" value={leak} onChange={(e) => setLeak(Number(e.target.value))} />
+          </label>
+          <div className="set-row">
+            <span>🗓 วันที่</span>
+            <div className="mini-seg">
+              {[['auto', 'อัตโนมัติ'], ['on', 'เปิด'], ['off', 'ปิด']].map(([v, l]) => (
+                <button key={v} className={timestamp === v ? 'on' : ''} onClick={() => setTimestamp(v)}>{l}</button>
+              ))}
+            </div>
+          </div>
+          <div className="set-row">
+            <span>▦ เส้นกริด</span>
+            <button className={`mini-toggle ${grid ? 'on' : ''}`} onClick={() => setGrid((g) => !g)} aria-label="เส้นกริด"><i /></button>
+          </div>
         </div>
       )}
 

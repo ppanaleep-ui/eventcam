@@ -177,11 +177,17 @@ export function renderFilm(src, w, h, film, opts = {}) {
     ctx.restore();
   }
 
-  // Light leak from a corner.
-  if (film.leak) {
-    const grd = ctx.createRadialGradient(w * 0.85, h * 0.12, 0, w * 0.85, h * 0.12, w * 0.75);
-    grd.addColorStop(0, 'rgba(255,120,70,0.45)');
-    grd.addColorStop(0.4, 'rgba(255,170,90,0.16)');
+  // Light leak — from the film default and/or a user "random light leaks" amount.
+  const leakStrength = Math.min(0.9, (film.leak ? 0.42 : 0) + (opts.leak || 0) * 0.8);
+  if (leakStrength > 0.01) {
+    // Randomise which corner the leak bleeds from for the "random" feel.
+    const corners = [
+      [0.85, 0.12], [0.15, 0.12], [0.85, 0.88], [0.15, 0.88],
+    ];
+    const [cx, cy] = corners[Math.floor(Math.random() * corners.length)];
+    const grd = ctx.createRadialGradient(w * cx, h * cy, 0, w * cx, h * cy, w * 0.75);
+    grd.addColorStop(0, `rgba(255,120,70,${leakStrength})`);
+    grd.addColorStop(0.4, `rgba(255,170,90,${leakStrength * 0.35})`);
     grd.addColorStop(1, 'rgba(255,170,90,0)');
     ctx.globalCompositeOperation = 'screen';
     ctx.fillStyle = grd;
@@ -216,7 +222,9 @@ export function renderFilm(src, w, h, film, opts = {}) {
     ctx.globalAlpha = 1;
   }
 
-  if (film.dateStamp) drawDateStamp(ctx, w, h);
+  // Timestamp: opts.stamp overrides the film default ('on' | 'off' | 'auto').
+  const showStamp = opts.stamp === 'on' ? true : opts.stamp === 'off' ? false : !!film.dateStamp;
+  if (showStamp) drawDateStamp(ctx, w, h);
 
   return out;
 }

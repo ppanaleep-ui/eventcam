@@ -1784,3 +1784,88 @@ input[type='text']:focus {
   background: linear-gradient(90deg, #6ea8ff 0%, #cfd6df 50%, #ff9e5e 100%);
 }
 .adjust-pop .adjust input.temp-slider { background: linear-gradient(90deg, #6ea8ff 0%, #cfd6df 50%, #ff9e5e 100%); }
+
+/* ---------- Camera: grid, low-light, extra settings ---------- */
+.cam-grid {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.28) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.28) 1px, transparent 1px);
+  background-size: 33.33% 33.33%;
+  background-position: -1px -1px;
+}
+.lowlight-pill {
+  position: absolute;
+  top: calc(60px + var(--safe-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(0, 0, 0, 0.5);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+}
+.lowlight-pill span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ffcf4d;
+  box-shadow: 0 0 6px #ffcf4d;
+}
+
+.adjust-pop .set-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.adjust-pop .set-row > span { color: var(--text); font-weight: 600; font-size: 13px; }
+.mini-seg {
+  display: inline-flex;
+  background: var(--bg-3);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px;
+}
+.mini-seg button {
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 999px;
+}
+.mini-seg button.on { background: var(--accent); color: var(--accent-ink); }
+.mini-toggle {
+  width: 42px;
+  height: 25px;
+  border-radius: 999px;
+  background: var(--bg-3);
+  border: 1px solid var(--line);
+  position: relative;
+  flex-shrink: 0;
+}
+.mini-toggle i {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform 0.16s ease;
+}
+.mini-toggle.on { background: var(--accent); border-color: var(--accent); }
+.mini-toggle.on i { transform: translateX(17px); }
