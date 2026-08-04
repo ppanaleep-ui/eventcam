@@ -10,8 +10,13 @@ import { broadcast } from '../sse.js';
 
 const router = Router();
 
-// Stream uploads to disk (or a temp dir, for S3) — never buffer whole images in
-// memory — so the server stays flat under a crowd all snapping at once.
+const IMG_EXT = { 'image/png': 'png', 'image/webp': 'webp', 'image/jpeg': 'jpg' };
+const VID_EXT = { 'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov' };
+const isVideoMime = (m) => config.allowedVideoMime.includes(m);
+const isImageMime = (m) => config.allowedMime.includes(m);
+
+// Stream uploads to disk (or a temp dir, for S3) — never buffer whole files in
+// memory — so the server stays flat under a crowd all uploading at once.
 const multerStorage = multer.diskStorage({
   async destination(req, file, cb) {
     try {
@@ -25,17 +30,26 @@ const multerStorage = multer.diskStorage({
     }
   },
   filename(req, file, cb) {
-    const kind = file.fieldname === 'thumb' ? 'thumb' : 'full';
-    const ext = file.mimetype === 'image/png' ? 'png' : file.mimetype === 'image/webp' ? 'webp' : 'jpg';
-    cb(null, `${req._photoId}_${kind}.${ext}`);
+    if (file.fieldname === 'thumb') {
+      cb(null, `${req._photoId}_thumb.${IMG_EXT[file.mimetype] || 'jpg'}`);
+    } else {
+      const ext = VID_EXT[file.mimetype] || IMG_EXT[file.mimetype] || 'jpg';
+      cb(null, `${req._photoId}_full.${ext}`);
+    }
   },
 });
 
 const upload = multer({
   storage: multerStorage,
-  limits: { fileSize: config.maxFullBytes, files: 2 },
+  // The 'full' field may be a video, so allow up to the video cap here and
+  // enforce the tighter photo/thumb limits after upload.
+  limits: { fileSize: config.maxVideoBytes, files: 2 },
   fileFilter(req, file, cb) {
-    if (!config.allowedMime.includes(file.mimetype)) return cb(new Error('Unsupported image type'));
+    if (file.fieldname === 'thumb') {
+      if (!isImageMime(file.mimetype)) return cb(new Error('Thumbnail must be an image'));
+    } else if (!isImageMime(file.mimetype) && !isVideoMime(file.mimetype)) {
+      return cb(new Error('Unsupported file type'));
+    }
     cb(null, true);
   },
 });
@@ -54,12 +68,12 @@ const fields = upload.fields([
   { name: 'thumb', maxCount: 1 },
 ]);
 
-// Upload a photo (full + thumbnail, both produced on the guest's device).
+// Upload a photo or video (full media + thumbnail, produced on the device).
 router.post('/:id/photos', uploadLimiter, (req, res) => {
   fields(req, res, async (err) => {
     if (err) {
       await cleanup(req);
-      const msg = err.code === 'LIMIT_FILE_SIZE' ? 'Image too large' : err.message;
+      const msg = err.code === 'LIMIT_FILE_SIZE' ? 'File too large' : err.message;
       return res.status(400).json({ error: msg });
     }
 
@@ -68,7 +82,14 @@ router.post('/:id/photos', uploadLimiter, (req, res) => {
     const thumb = req.files?.thumb?.[0];
     if (!e || !full) {
       await cleanup(req);
-      return res.status(400).json({ error: 'Missing image' });
+      return res.status(400).json({ error: 'Missing file' });
+    }
+
+    const kind = isVideoMime(full.mimetype) ? 'video' : 'photo';
+    // Enforce the per-kind size limits (multer's single limit was the video cap).
+    if (kind === 'photo' && full.size > config.maxFullBytes) {
+      await cleanup(req);
+      return res.status(400).json({ error: 'Image too large' });
     }
     if (thumb && thumb.size > config.maxThumbBytes) {
       await cleanup(req);
@@ -76,16 +97,18 @@ router.post('/:id/photos', uploadLimiter, (req, res) => {
     }
 
     try {
-      // Push bytes to their final home (no-op for local, upload for S3).
       await storage().finalize(e.id, [full, ...(thumb ? [thumb] : [])]);
 
       const photo = {
         id: req._photoId,
         event_id: e.id,
         guest_name: String(req.body?.guestName || '').trim().slice(0, 60) || null,
+        owner_id: ownerId(req) || null,
+        kind,
         filter: String(req.body?.filter || '').trim().slice(0, 40) || null,
         width: clampInt(req.body?.width),
         height: clampInt(req.body?.height),
+        duration: clampInt(req.body?.duration) || null,
         bytes: full.size,
         full_key: full.filename,
         thumb_key: thumb ? thumb.filename : null,
@@ -98,7 +121,7 @@ router.post('/:id/photos', uploadLimiter, (req, res) => {
       res.status(201).json(dto);
     } catch (e2) {
       await cleanup(req);
-      res.status(500).json({ error: 'Could not save photo' });
+      res.status(500).json({ error: 'Could not save upload' });
     }
   });
 });
@@ -119,6 +142,8 @@ router.get('/:id/photos', async (req, res) => {
 });
 
 // Shared DTO builder — the wire shape guests see. Works for both DB backends.
+// ownerId is an opaque random device id; the client compares it to its own to
+// decide whether to show a "delete my own" button.
 export function toDto(p) {
   const s = storage();
   const fullKey = p.full_key;
@@ -126,10 +151,13 @@ export function toDto(p) {
   return {
     id: p.id,
     eventId: p.event_id,
+    kind: p.kind || 'photo',
     guestName: p.guest_name,
+    ownerId: p.owner_id || null,
     filter: p.filter,
     width: p.width,
     height: p.height,
+    duration: p.duration || null,
     createdAt: Number(p.created_at),
     url: fullKey ? s.urlFor(p.event_id, fullKey) : null,
     thumbUrl: thumbKey
@@ -138,6 +166,10 @@ export function toDto(p) {
         ? s.urlFor(p.event_id, fullKey)
         : null,
   };
+}
+
+export function ownerId(req) {
+  return (req.get('x-guest-id') || req.body?.guestId || '').toString().slice(0, 40);
 }
 
 async function cleanup(req) {

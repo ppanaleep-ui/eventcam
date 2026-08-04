@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api.js';
+import { getGuestId } from '../lib/guest.js';
 import Lightbox from './Lightbox.jsx';
 
 export default function Album({ eventId, photos, setPhotos, count, isHost, adminToken, onDeleted, onToast }) {
@@ -65,11 +66,12 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
           <button key={p.id} className="tile" onClick={() => setActive(i)}>
             <img
               src={p.thumbUrl || p.url}
-              alt={p.guestName ? `Photo by ${p.guestName}` : 'Event photo'}
+              alt={p.guestName ? `ภาพโดย ${p.guestName}` : 'ภาพในงาน'}
               loading="lazy"
-              width={p.width || undefined}
-              height={p.height || undefined}
             />
+            {p.kind === 'video' && (
+              <span className="vid-badge">▶{p.duration ? ` ${p.duration}s` : ''}</span>
+            )}
             {p.guestName && <div className="who">{p.guestName}</div>}
           </button>
         ))}
@@ -96,6 +98,7 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
           eventId={eventId}
           isHost={isHost}
           adminToken={adminToken}
+          myGuestId={getGuestId()}
           onDeleted={onDeleted}
           onToast={onToast}
         />

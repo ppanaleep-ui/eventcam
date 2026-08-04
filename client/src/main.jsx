@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import './styles.css';
 import Home from './pages/Home.jsx';
 import Event from './pages/Event.jsx';
+import Admin from './pages/Admin.jsx';
 import NotFound from './pages/NotFound.jsx';
 
 createRoot(document.getElementById('root')).render(
@@ -11,6 +12,7 @@ createRoot(document.getElementById('root')).render(
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/admin" element={<Admin />} />
         <Route path="/e/:id" element={<Event />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

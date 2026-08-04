@@ -36,15 +36,22 @@ export async function createPostgresRepo() {
           id         TEXT PRIMARY KEY,
           event_id   TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
           guest_name TEXT,
+          owner_id   TEXT,
+          kind       TEXT NOT NULL DEFAULT 'photo',
           filter     TEXT,
           width      INTEGER,
           height     INTEGER,
+          duration   INTEGER,
           bytes      INTEGER,
           full_key   TEXT,
           thumb_key  TEXT,
           created_at BIGINT NOT NULL
         );
       `);
+      // Migrate databases created before these columns existed.
+      await q(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS owner_id TEXT`);
+      await q(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'photo'`);
+      await q(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS duration INTEGER`);
       await q(
         `CREATE INDEX IF NOT EXISTS idx_photos_event_created
            ON photos (event_id, created_at DESC);`
@@ -69,9 +76,9 @@ export async function createPostgresRepo() {
       try {
         await client.query('BEGIN');
         await client.query(
-          `INSERT INTO photos (id, event_id, guest_name, filter, width, height, bytes, full_key, thumb_key, created_at)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-          [p.id, p.event_id, p.guest_name, p.filter, p.width, p.height, p.bytes, p.full_key, p.thumb_key, p.created_at]
+          `INSERT INTO photos (id, event_id, guest_name, owner_id, kind, filter, width, height, duration, bytes, full_key, thumb_key, created_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+          [p.id, p.event_id, p.guest_name, p.owner_id, p.kind, p.filter, p.width, p.height, p.duration, p.bytes, p.full_key, p.thumb_key, p.created_at]
         );
         await client.query(`UPDATE events SET photo_count = photo_count + 1 WHERE id = $1`, [p.event_id]);
         await client.query('COMMIT');
@@ -129,6 +136,14 @@ export async function createPostgresRepo() {
         [eventId]
       );
       return rows;
+    },
+
+    async renameEvent(id, name) {
+      await q(`UPDATE events SET name = $1 WHERE id = $2`, [name, id]);
+    },
+
+    async deleteEvent(id) {
+      await q(`DELETE FROM events WHERE id = $1`, [id]); // photos cascade
     },
   };
 }

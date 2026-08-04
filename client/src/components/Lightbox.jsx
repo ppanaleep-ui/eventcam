@@ -9,23 +9,27 @@ export default function Lightbox({
   eventId,
   isHost,
   adminToken,
+  myGuestId,
   onDeleted,
   onToast,
 }) {
   const photo = photos[index];
+  const isVideo = photo?.kind === 'video';
+  const canDelete = !!photo && (isHost || (photo.ownerId && photo.ownerId === myGuestId));
+  const ext = isVideo ? guessVideoExt(photo?.url) : 'jpg';
 
   async function remove() {
     if (!photo) return;
-    if (!window.confirm('Remove this photo for everyone?')) return;
+    const msg = isHost ? 'ลบไฟล์นี้ออกจากทุกเครื่อง?' : 'ลบไฟล์ของคุณ?';
+    if (!window.confirm(msg)) return;
     try {
-      await api.deletePhoto(eventId, photo.id, adminToken);
+      await api.deletePhoto(eventId, photo.id, isHost ? adminToken : undefined);
       onDeleted?.(photo.id);
-      onToast?.('Photo removed');
-      // Close if that was the last one, otherwise clamp the index.
+      onToast?.('ลบแล้ว');
       if (photos.length <= 1) onClose();
       else onIndex(Math.min(index, photos.length - 2));
     } catch (err) {
-      onToast?.(err.message || 'Could not remove');
+      onToast?.(err.message || 'ลบไม่สำเร็จ');
     }
   }
 
@@ -43,13 +47,12 @@ export default function Lightbox({
 
   async function download() {
     try {
-      // Fetch as a blob so mobile browsers actually save rather than navigate.
       const res = await fetch(photo.url);
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `eventcam-${photo.id}.jpg`;
+      a.download = `eventcam-${photo.id}.${ext}`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -64,7 +67,7 @@ export default function Lightbox({
       if (navigator.share && navigator.canShare) {
         const res = await fetch(photo.url);
         const blob = await res.blob();
-        const file = new File([blob], `eventcam-${photo.id}.jpg`, { type: 'image/jpeg' });
+        const file = new File([blob], `eventcam-${photo.id}.${ext}`, { type: blob.type });
         if (navigator.canShare({ files: [file] })) {
           await navigator.share({ files: [file] });
           return;
@@ -80,28 +83,37 @@ export default function Lightbox({
     <div className="lightbox" onClick={onClose}>
       <div className="lb-bar" onClick={(e) => e.stopPropagation()}>
         <div style={{ fontSize: 13, color: 'var(--muted)' }}>
-          {photo.guestName ? `📸 ${photo.guestName}` : 'Event photo'}
+          {photo.guestName ? `${isVideo ? '🎬' : '📸'} ${photo.guestName}` : isVideo ? 'วิดีโอในงาน' : 'ภาพในงาน'}
         </div>
-        <button className="round-btn" onClick={onClose} aria-label="Close">
+        <button className="round-btn" onClick={onClose} aria-label="ปิด">
           ✕
         </button>
       </div>
       <div className="img-wrap" onClick={(e) => e.stopPropagation()}>
-        <img src={photo.url} alt={photo.guestName ? `Photo by ${photo.guestName}` : 'Event photo'} />
+        {isVideo ? (
+          <video src={photo.url} controls autoPlay playsInline style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 8 }} />
+        ) : (
+          <img src={photo.url} alt={photo.guestName ? `ภาพโดย ${photo.guestName}` : 'ภาพในงาน'} />
+        )}
       </div>
       <div className="lb-foot" onClick={(e) => e.stopPropagation()}>
-        {isHost && (
-          <button className="btn danger" onClick={remove} aria-label="Delete photo">
+        {canDelete && (
+          <button className="btn danger" onClick={remove} aria-label="ลบ">
             🗑
           </button>
         )}
         <button className="btn secondary" onClick={download}>
-          ⬇ Save
+          ⬇ บันทึก
         </button>
         <button className="btn" onClick={share}>
-          Share
+          แชร์
         </button>
       </div>
     </div>
   );
+}
+
+function guessVideoExt(url = '') {
+  const m = url.toLowerCase().match(/\.(mp4|webm|mov)(\?|$)/);
+  return m ? m[1] : 'mp4';
 }

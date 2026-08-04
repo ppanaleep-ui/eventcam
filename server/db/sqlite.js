@@ -35,9 +35,12 @@ export function createSqliteRepo() {
           id         TEXT PRIMARY KEY,
           event_id   TEXT NOT NULL,
           guest_name TEXT,
+          owner_id   TEXT,
+          kind       TEXT NOT NULL DEFAULT 'photo',
           filter     TEXT,
           width      INTEGER,
           height     INTEGER,
+          duration   INTEGER,
           bytes      INTEGER,
           full_key   TEXT,
           thumb_key  TEXT,
@@ -48,6 +51,15 @@ export function createSqliteRepo() {
           ON photos (event_id, created_at DESC);
       `);
 
+      // Migrate databases created before these columns existed.
+      const cols = new Set(db.prepare(`PRAGMA table_info(photos)`).all().map((c) => c.name));
+      const addCol = (name, decl) => {
+        if (!cols.has(name)) db.exec(`ALTER TABLE photos ADD COLUMN ${name} ${decl}`);
+      };
+      addCol('owner_id', 'TEXT');
+      addCol('kind', "TEXT NOT NULL DEFAULT 'photo'");
+      addCol('duration', 'INTEGER');
+
       stmts = {
         insertEvent: db.prepare(
           `INSERT INTO events (id, name, host_name, admin_token, created_at)
@@ -55,8 +67,8 @@ export function createSqliteRepo() {
         ),
         getEvent: db.prepare(`SELECT * FROM events WHERE id = ?`),
         insertPhoto: db.prepare(
-          `INSERT INTO photos (id, event_id, guest_name, filter, width, height, bytes, full_key, thumb_key, created_at)
-           VALUES (@id, @event_id, @guest_name, @filter, @width, @height, @bytes, @full_key, @thumb_key, @created_at)`
+          `INSERT INTO photos (id, event_id, guest_name, owner_id, kind, filter, width, height, duration, bytes, full_key, thumb_key, created_at)
+           VALUES (@id, @event_id, @guest_name, @owner_id, @kind, @filter, @width, @height, @duration, @bytes, @full_key, @thumb_key, @created_at)`
         ),
         bump: db.prepare(`UPDATE events SET photo_count = photo_count + 1 WHERE id = ?`),
         dec: db.prepare(
@@ -112,6 +124,14 @@ export function createSqliteRepo() {
 
     async listAllPhotos(eventId) {
       return stmts.listAll.all(eventId);
+    },
+
+    async renameEvent(id, name) {
+      db.prepare(`UPDATE events SET name = ? WHERE id = ?`).run(name, id);
+    },
+
+    async deleteEvent(id) {
+      db.prepare(`DELETE FROM events WHERE id = ?`).run(id); // photos cascade
     },
   };
 }

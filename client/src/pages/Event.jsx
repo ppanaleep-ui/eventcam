@@ -111,6 +111,15 @@ export default function Event() {
         removePhoto(JSON.parse(e.data).id);
       } catch {}
     });
+    es.addEventListener('event', (e) => {
+      try {
+        const { name } = JSON.parse(e.data);
+        if (name) setEvent((ev) => (ev ? { ...ev, name } : ev));
+      } catch {}
+    });
+    es.addEventListener('event-deleted', () => {
+      setStatus('notfound');
+    });
     es.onerror = () => {
       setLive(false);
       startPolling();

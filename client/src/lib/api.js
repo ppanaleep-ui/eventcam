@@ -1,4 +1,5 @@
 // Thin fetch wrapper around the EventCam API.
+import { getGuestId } from './guest.js';
 
 async function json(res) {
   const data = await res.json().catch(() => ({}));
@@ -15,8 +16,9 @@ export const api = {
     }).then(json);
   },
 
-  getEvent(id) {
-    return fetch(`/api/events/${id}`).then(json);
+  getEvent(id, token) {
+    const headers = token ? { 'x-admin-token': token } : {};
+    return fetch(`/api/events/${id}`, { headers }).then(json);
   },
 
   listPhotos(id, { before, limit } = {}) {
@@ -26,20 +28,22 @@ export const api = {
     return fetch(`/api/events/${id}/photos?${q}`).then(json);
   },
 
-  // Uploads full + thumbnail blobs produced on the device.
-  uploadPhoto(id, { full, thumb, guestName, filter, width, height, onProgress }) {
+  // Uploads full media (photo or video) + a thumbnail/poster produced on device.
+  uploadMedia(id, { full, thumb, guestName, filter, kind, width, height, duration, onProgress }) {
     const fd = new FormData();
-    fd.append('full', full, 'photo.jpg');
+    const fullName = kind === 'video' ? 'clip' : 'photo';
+    fd.append('full', full, `${fullName}`);
     if (thumb) fd.append('thumb', thumb, 'thumb.jpg');
     if (guestName) fd.append('guestName', guestName);
     if (filter) fd.append('filter', filter);
     if (width) fd.append('width', String(width));
     if (height) fd.append('height', String(height));
+    if (duration) fd.append('duration', String(duration));
 
-    // XHR (not fetch) so we can report upload progress on flaky venue wifi.
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open('POST', `/api/events/${id}/photos`);
+      xhr.setRequestHeader('x-guest-id', getGuestId());
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total);
       };
@@ -60,15 +64,30 @@ export const api = {
     return `/api/events/${id}/qr`;
   },
 
-  // ---- Host-only ----
+  // ---- Delete (owner or host) ----
+  // Sends both the guest id (owner) and, if present, the admin token (host).
   deletePhoto(id, photoId, token) {
-    return fetch(`/api/events/${id}/photos/${photoId}`, {
+    const headers = { 'x-guest-id': getGuestId() };
+    if (token) headers['x-admin-token'] = token;
+    return fetch(`/api/events/${id}/photos/${photoId}`, { method: 'DELETE', headers }).then(json);
+  },
+
+  // ---- Host-only ----
+  renameEvent(id, name, token) {
+    return fetch(`/api/events/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+      body: JSON.stringify({ name }),
+    }).then(json);
+  },
+
+  deleteEvent(id, token) {
+    return fetch(`/api/events/${id}`, {
       method: 'DELETE',
       headers: { 'x-admin-token': token },
     }).then(json);
   },
 
-  // A plain URL so the browser handles the (potentially large) zip download.
   downloadAllUrl(id, token) {
     return `/api/events/${id}/download?token=${encodeURIComponent(token)}`;
   },

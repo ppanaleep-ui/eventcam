@@ -37,16 +37,27 @@ festival"; see **[SCALING.md](./SCALING.md)**.
 ## Features
 
 - **Scan & join** — one QR code / link, works on any phone, no install.
-- **In-browser camera** — front/back switch, live filter preview.
+- **In-browser camera** — front/back switch, live filter preview, crisp capture
+  (up to ~1920px / 1080p+).
+- **Photo & video** — snap a photo or record a short clip; videos play inline in
+  the album.
+- **Aspect ratios** — shoot Full / 1:1 / 4:5 / 9:16 with an on-screen framing
+  guide; the review shows the true, uncropped frame.
 - **Retro film filters** — Classic, '90s (with date stamp), Noir, Sunwash light
   leak, Polaroid frame — grain, vignette and warmth included.
-- **Live shared album** — new photos appear for everyone in real time (with an
-  automatic polling fallback if the live connection can't hold).
-- **Save & share** — download or native-share any photo.
-- **Guest names** — remembered per device, no accounts or logins.
-- **Host controls** — whoever creates the event can delete any photo (it
-  disappears for everyone live) and download the whole album as a ZIP. Host
-  access is an opaque token kept on the creator's device — no admin login.
+- **Use the real phone camera** — a one-tap option opens the device's native
+  camera / gallery (full quality, native video) and uploads the result.
+- **Keep a copy** — save any shot to your own device as you post it.
+- **Live shared album** — new photos/videos appear for everyone in real time
+  (with an automatic polling fallback if the live connection can't hold).
+- **Save & share** — download or native-share any photo or video.
+- **Delete your own** — the guest who uploaded a shot can remove it; it vanishes
+  for everyone live.
+- **Host controls** — the event creator can delete any photo/video, rename or
+  delete the event, and download the whole album as a ZIP. Host access is an
+  opaque token kept on the creator's device — no admin login.
+- **Admin page** (`/admin`) — manage every event you host from one device: open,
+  show QR, rename, download ZIP, or delete.
 
 ---
 

@@ -40,5 +40,10 @@ export function createLocalStorage() {
       if (!key) return;
       await fs.promises.rm(path.join(uploadsRoot, eventId, key), { force: true });
     },
+
+    // Drop the whole event folder in one go.
+    async removeEvent(eventId) {
+      await fs.promises.rm(path.join(uploadsRoot, eventId), { recursive: true, force: true });
+    },
   };
 }

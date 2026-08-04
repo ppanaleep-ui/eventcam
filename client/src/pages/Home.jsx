@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { setGuestName } from '../lib/guest.js';
+import { addMyEvent, getMyEvents } from '../lib/admin.js';
 
 export default function Home() {
   const [name, setName] = useState('');
@@ -17,10 +18,8 @@ export default function Home() {
     try {
       const ev = await api.createEvent({ name: name.trim() || 'My Event', hostName: host.trim() });
       if (host.trim()) setGuestName(host.trim());
-      // Remember we host this event on this device.
-      try {
-        localStorage.setItem(`eventcam.admin.${ev.id}`, ev.adminToken);
-      } catch {}
+      // Remember we host this event on this device (unlocks host + admin page).
+      addMyEvent({ id: ev.id, token: ev.adminToken, name: ev.name });
       navigate(`/e/${ev.id}?invite=1`);
     } catch (err) {
       setError(err.message);
@@ -31,9 +30,16 @@ export default function Home() {
   return (
     <div className="app">
       <div className="landing">
-        <div className="brand">
-          <img src="/favicon.svg" alt="" />
-          <h1>EventCam</h1>
+        <div className="brand" style={{ justifyContent: 'space-between', width: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <img src="/favicon.svg" alt="" />
+            <h1>EventCam</h1>
+          </div>
+          {getMyEvents().length > 0 && (
+            <Link to="/admin" className="btn ghost" style={{ width: 'auto', padding: '8px 14px', textDecoration: 'none' }}>
+              จัดการอีเวนต์
+            </Link>
+          )}
         </div>
 
         <div className="hero">

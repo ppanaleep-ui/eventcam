@@ -87,5 +87,9 @@ export async function createS3Storage() {
         new DeleteObjectCommand({ Bucket: bucket, Key: objectKey(eventId, key) })
       );
     },
+
+    // No bulk op here — the route deletes each object by key (from the DB rows)
+    // before removing the event, which works across any S3-compatible store.
+    async removeEvent() {},
   };
 }

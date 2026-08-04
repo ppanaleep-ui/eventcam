@@ -7,6 +7,7 @@ import { config, eventPublicUrl } from '../config.js';
 import { db } from '../db/index.js';
 import { storage } from '../storage/index.js';
 import { subscribe, broadcast } from '../sse.js';
+import { ownerId } from './photos.js';
 
 const router = Router();
 
@@ -99,11 +100,19 @@ router.get('/:id/stream', async (req, res) => {
 
 // ---- Host-only controls ---------------------------------------------------
 
-// Delete a photo. Broadcasts a `delete` so it disappears for everyone live.
+// Delete a photo/video. Allowed for the host OR the guest who uploaded it
+// (matched by their opaque device id). Broadcasts `delete` so it disappears for
+// everyone live.
 router.delete('/:id/photos/:photoId', async (req, res) => {
   const e = await db().getEvent(req.params.id);
   if (!e) return res.status(404).json({ error: 'Event not found' });
-  if (!isHost(req, e)) return res.status(403).json({ error: 'Host only' });
+
+  const photo = await db().getPhoto(e.id, req.params.photoId);
+  if (!photo) return res.status(404).json({ error: 'Photo not found' });
+
+  const host = isHost(req, e);
+  const owner = !!photo.owner_id && photo.owner_id === ownerId(req);
+  if (!host && !owner) return res.status(403).json({ error: 'Not allowed' });
 
   const removed = await db().deletePhotoAndDec(e.id, req.params.photoId);
   if (!removed) return res.status(404).json({ error: 'Photo not found' });
@@ -116,6 +125,42 @@ router.delete('/:id/photos/:photoId', async (req, res) => {
 
   broadcast(e.id, 'delete', { id: removed.id });
   res.json({ ok: true, id: removed.id });
+});
+
+// Rename an event (host only).
+router.patch('/:id', async (req, res) => {
+  const e = await db().getEvent(req.params.id);
+  if (!e) return res.status(404).json({ error: 'Event not found' });
+  if (!isHost(req, e)) return res.status(403).json({ error: 'Host only' });
+
+  const name = String(req.body?.name || '').trim().slice(0, 80);
+  if (!name) return res.status(400).json({ error: 'Name required' });
+  await db().renameEvent(e.id, name);
+  broadcast(e.id, 'event', { name });
+  res.json({ ok: true, name });
+});
+
+// Delete an entire event and all its media (host only).
+router.delete('/:id', async (req, res) => {
+  const e = await db().getEvent(req.params.id);
+  if (!e) return res.status(404).json({ error: 'Event not found' });
+  if (!isHost(req, e)) return res.status(403).json({ error: 'Host only' });
+
+  const photos = await db().listAllPhotos(e.id);
+  // Remove each blob first (works for both local and S3), then the folder.
+  for (const p of photos) {
+    try {
+      await storage().remove(e.id, p.full_key);
+      if (p.thumb_key) await storage().remove(e.id, p.thumb_key);
+    } catch {}
+  }
+  try {
+    await storage().removeEvent(e.id);
+  } catch {}
+
+  await db().deleteEvent(e.id); // photo rows cascade
+  broadcast(e.id, 'event-deleted', { id: e.id });
+  res.json({ ok: true, id: e.id });
 });
 
 // Download the whole album as a streamed ZIP (host only).

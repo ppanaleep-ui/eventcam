@@ -23,9 +23,11 @@ export const config = {
 
   // Upload guard rails. Real image processing happens on the guest's device,
   // so these are just safety limits for the raw bytes we accept.
-  maxFullBytes: num(process.env.MAX_FULL_BYTES, 12 * 1024 * 1024), // 12 MB
+  maxFullBytes: num(process.env.MAX_FULL_BYTES, 16 * 1024 * 1024), // 16 MB (crisp photos)
   maxThumbBytes: num(process.env.MAX_THUMB_BYTES, 2 * 1024 * 1024), // 2 MB
+  maxVideoBytes: num(process.env.MAX_VIDEO_BYTES, 80 * 1024 * 1024), // 80 MB
   allowedMime: (process.env.ALLOWED_MIME || 'image/jpeg,image/png,image/webp').split(','),
+  allowedVideoMime: (process.env.ALLOWED_VIDEO_MIME || 'video/mp4,video/webm,video/quicktime').split(','),
 
   // How many photos a single event page can pull per request.
   pageSize: num(process.env.PAGE_SIZE, 60),
