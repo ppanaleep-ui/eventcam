@@ -23,6 +23,9 @@ const P = {
   clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
   chevronRight: <><path d="m9 6 6 6-6 6" /></>,
   heart: <><path d="M12 20s-7-4.5-9.5-9C1 8 2.5 4.5 6 4.5c2 0 3.2 1.2 4 2.3.8-1.1 2-2.3 4-2.3 3.5 0 5 3.5 3.5 6.5C19 15.5 12 20 12 20Z" /></>,
+  sliders: <><path d="M4 8h5M15 8h5" /><circle cx="12" cy="8" r="2.3" /><path d="M4 16h9M19 16h1" /><circle cx="16" cy="16" r="2.3" /></>,
+  timer: <><circle cx="12" cy="13" r="8" /><path d="M12 13V9M9 2h6" /></>,
+  bolt: <><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" /></>,
 };
 
 export default function Icon({ name, size = 22, strokeWidth = 2, className = '', style }) {

@@ -40,11 +40,16 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
   const [progress, setProgress] = useState(null);
   const [recording, setRecording] = useState(false);
   const [recSecs, setRecSecs] = useState(0);
+  const [showAdjust, setShowAdjust] = useState(false);
 
   const film = getFilm(filmId);
   const aspect = getAspect(aspectId);
   const videoSupported = pickVideoMime() !== null;
   const adjust = { temp, exposure };
+  const cycleAspect = () => setAspectId((id) => {
+    const i = ASPECTS.findIndex((a) => a.id === id);
+    return ASPECTS[(i + 1) % ASPECTS.length].id;
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -225,32 +230,63 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
     );
   }
 
-  // ---- Live ----
+  // ---- Live (Instagram-style full-bleed camera) ----
   return (
-    <div className="camera">
-      <div className="viewport">
-        <video ref={videoRef} className={facing === 'user' ? 'mirror' : ''} style={{ filter: liveFilter }} playsInline muted />
-        <div className="cam-overlay" />
+    <div className="camera ig">
+      <video ref={videoRef} className={`cam-feed ${facing === 'user' ? 'mirror' : ''}`} style={{ filter: liveFilter }} playsInline muted />
+      <div className="cam-scrim top" />
+      <div className="cam-scrim bottom" />
 
-        {camState === 'live' && mode === 'photo' && (
-          <>
-            <div className="format-label">{FORMAT_LABEL[aspectId] || '35mm'}</div>
-            {aspect.ratio && <div className="frame-guide" style={{ aspectRatio: String(aspect.ratio) }} />}
-          </>
-        )}
+      {camState === 'live' && mode === 'photo' && aspect.ratio && (
+        <div className="frame-guide" style={{ aspectRatio: String(aspect.ratio) }} />
+      )}
+      {countdown !== null && <div className="countdown">{countdown}</div>}
+      {recording && <div className="rec-badge"><span className="rec-dot" /> {String(recSecs).padStart(2, '0')}s / {MAX_VIDEO_SECS}s</div>}
 
-        {countdown !== null && <div className="countdown">{countdown}</div>}
-        {recording && <div className="rec-badge"><span className="rec-dot" /> {String(recSecs).padStart(2, '0')}s / {MAX_VIDEO_SECS}s</div>}
+      {/* Top floating bar */}
+      <div className="cam-top">
+        <button className="cam-pill" onClick={cycleAspect} aria-label="อัตราส่วน">
+          {FORMAT_LABEL[aspectId] || '35mm'}
+        </button>
+        <div className="cam-top-right">
+          {mode === 'photo' && (
+            <button className={`cam-ico ${selfTimer ? 'on' : ''}`} onClick={() => setSelfTimer((t) => (t === 0 ? 3 : t === 3 ? 10 : 0))} aria-label="ตั้งเวลา">
+              <Icon name="timer" size={22} />
+              {selfTimer > 0 && <em>{selfTimer}</em>}
+            </button>
+          )}
+          {mode === 'photo' && (
+            <button className={`cam-ico ${showAdjust ? 'on' : ''}`} onClick={() => setShowAdjust((s) => !s)} aria-label="ปรับแสง/สี">
+              <Icon name="sliders" size={22} />
+            </button>
+          )}
+        </div>
+      </div>
 
-        {camState !== 'live' && (
-          <div className="cam-message">
-            {camState === 'starting' && <><div className="spinner" /><div>กำลังเปิดกล้อง…</div></>}
-            {camState === 'denied' && <><div className="big">🚫</div><div>กล้องถูกปิดกั้น เปิดสิทธิ์กล้องในเบราว์เซอร์ หรือใช้ปุ่มคลังภาพด้านล่าง</div></>}
-            {camState === 'error' && <><div className="big">📷</div><div>เปิดกล้องในแอปไม่ได้ ลองใช้ปุ่มคลังภาพด้านล่างแทน</div></>}
-          </div>
-        )}
+      {/* Adjust popover */}
+      {showAdjust && mode === 'photo' && (
+        <div className="adjust-pop glass">
+          <label className="adjust">
+            <span>☀ แสง {exposure > 0 ? `+${exposure.toFixed(1)}` : exposure.toFixed(1)}</span>
+            <input type="range" min="-2" max="2" step="0.1" value={exposure} onChange={(e) => setExposure(Number(e.target.value))} />
+          </label>
+          <label className="adjust">
+            <span>🌡 อุ่น/เย็น {temp > 0 ? `+${temp}` : temp}</span>
+            <input type="range" min="-100" max="100" step="5" value={temp} onChange={(e) => setTemp(Number(e.target.value))} />
+          </label>
+        </div>
+      )}
 
-        {/* Film picker */}
+      {camState !== 'live' && (
+        <div className="cam-message">
+          {camState === 'starting' && <><div className="spinner" /><div>กำลังเปิดกล้อง…</div></>}
+          {camState === 'denied' && <><div className="big">🚫</div><div>กล้องถูกปิดกั้น เปิดสิทธิ์กล้องในเบราว์เซอร์ หรือแตะ ▢ เพื่อเลือกจากคลังภาพ</div></>}
+          {camState === 'error' && <><div className="big">📷</div><div>เปิดกล้องในแอปไม่ได้ แตะ ▢ เพื่อเลือกจากคลังภาพแทน</div></>}
+        </div>
+      )}
+
+      {/* Bottom floating cluster */}
+      <div className="cam-bottom">
         {camState === 'live' && mode === 'photo' && (
           <div className="film-strip">
             {FILMS.map((f) => (
@@ -260,50 +296,23 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
             ))}
           </div>
         )}
-      </div>
 
-      {/* Adjustments (photo mode) */}
-      {mode === 'photo' && (
-        <div className="adjust-row">
-          <label className="adjust">
-            <span>☀ แสง</span>
-            <input type="range" min="-2" max="2" step="0.1" value={exposure} onChange={(e) => setExposure(Number(e.target.value))} />
-          </label>
-          <label className="adjust">
-            <span>🌡 อุ่น/เย็น</span>
-            <input type="range" min="-100" max="100" step="5" value={temp} onChange={(e) => setTemp(Number(e.target.value))} />
-          </label>
+        <div className="shutter-row">
+          <button className="thumb-btn" onClick={() => fileRef.current?.click()} aria-label="คลังภาพ"><Icon name="images" size={24} /></button>
+          <input ref={fileRef} type="file" accept="image/*,video/*" capture="environment" onChange={onPickFile} hidden />
+          <button
+            className={`shutter ${mode === 'video' ? 'video' : ''} ${recording ? 'recording' : ''}`}
+            onClick={onShutter}
+            disabled={camState !== 'live' || countdown !== null}
+            aria-label={mode === 'video' ? (recording ? 'หยุดอัด' : 'อัดวิดีโอ') : 'ถ่ายรูป'}
+          />
+          <button className="flip-btn" onClick={() => setFacing((f) => (f === 'user' ? 'environment' : 'user'))} disabled={recording} aria-label="สลับกล้อง"><Icon name="refresh" size={24} /></button>
         </div>
-      )}
 
-      {/* aspect + timer + mode */}
-      <div className="opt-row">
-        {mode === 'photo' &&
-          ASPECTS.map((a) => (
-            <button key={a.id} className={`aspect-chip ${a.id === aspectId ? 'active' : ''}`} onClick={() => setAspectId(a.id)}>{a.label}</button>
-          ))}
-        {mode === 'photo' && (
-          <button className={`aspect-chip ${selfTimer ? 'active' : ''}`} onClick={() => setSelfTimer((t) => (t === 0 ? 3 : t === 3 ? 10 : 0))}>
-            ⏱ {selfTimer ? `${selfTimer}s` : 'OFF'}
-          </button>
-        )}
-      </div>
-
-      <div className="mode-row">
-        <button className={`mode-tab ${mode === 'photo' ? 'active' : ''}`} onClick={() => !recording && setMode('photo')}><Icon name="camera" size={17} /> รูป</button>
-        {videoSupported && <button className={`mode-tab ${mode === 'video' ? 'active' : ''}`} onClick={() => setMode('video')}><Icon name="video" size={17} /> วิดีโอ</button>}
-      </div>
-
-      <div className="cam-controls">
-        <button className="round-btn" onClick={() => fileRef.current?.click()} aria-label="กล้องมือถือหรือคลังภาพ"><Icon name="images" size={22} /></button>
-        <input ref={fileRef} type="file" accept="image/*,video/*" capture="environment" onChange={onPickFile} hidden />
-        <button
-          className={`shutter ${mode === 'video' ? 'video' : ''} ${recording ? 'recording' : ''}`}
-          onClick={onShutter}
-          disabled={camState !== 'live' || countdown !== null}
-          aria-label={mode === 'video' ? (recording ? 'หยุดอัด' : 'อัดวิดีโอ') : 'ถ่ายรูป'}
-        />
-        <button className="round-btn" onClick={() => setFacing((f) => (f === 'user' ? 'environment' : 'user'))} disabled={recording} aria-label="สลับกล้อง"><Icon name="refresh" size={22} /></button>
+        <div className="mode-switch">
+          <button className={mode === 'photo' ? 'active' : ''} onClick={() => !recording && setMode('photo')}>รูป</button>
+          {videoSupported && <button className={mode === 'video' ? 'active' : ''} onClick={() => setMode('video')}>วิดีโอ</button>}
+        </div>
       </div>
     </div>
   );
