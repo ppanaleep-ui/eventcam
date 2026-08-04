@@ -26,3 +26,10 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      # Signing key for login sessions — Render generates a stable random value.
+      - key: JWT_SECRET
+        generateValue: true
+      # IMPORTANT: set this to YOUR email. Whoever registers with it becomes the
+      # site owner and can approve other organizers. Render will prompt for it.
+      - key: OWNER_EMAIL
+        sync: false

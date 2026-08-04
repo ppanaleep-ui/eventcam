@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { FILTERS, getFilter } from '../lib/filters.js';
 import { ASPECTS, getAspect, produceImages, produceFromImageFile, videoPoster, saveToDevice } from '../lib/capture.js';
 import { api } from '../lib/api.js';
+import Icon from './Icon.jsx';
 
 const MAX_VIDEO_SECS = 20;
 
@@ -236,7 +237,7 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
             ถ่ายใหม่
           </button>
           <button className="round-btn" onClick={saveShot} disabled={progress !== null} title="บันทึกลงเครื่อง" aria-label="บันทึกลงเครื่อง">
-            ⬇
+            <Icon name="download" size={20} />
           </button>
           <button className="btn" onClick={send} disabled={progress !== null}>
             {progress !== null ? `กำลังส่ง ${Math.round(progress * 100)}%` : 'เพิ่มลงอัลบั้ม'}
@@ -327,18 +328,18 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
       {/* mode toggle */}
       <div className="mode-row">
         <button className={`mode-tab ${mode === 'photo' ? 'active' : ''}`} onClick={() => !recording && setMode('photo')}>
-          📷 รูป
+          <Icon name="camera" size={17} /> รูป
         </button>
         {videoSupported && (
           <button className={`mode-tab ${mode === 'video' ? 'active' : ''}`} onClick={() => setMode('video')}>
-            🎬 วิดีโอ
+            <Icon name="video" size={17} /> วิดีโอ
           </button>
         )}
       </div>
 
       <div className="cam-controls">
         <button className="round-btn" onClick={() => fileRef.current?.click()} title="กล้องมือถือ / คลังภาพ" aria-label="กล้องมือถือหรือคลังภาพ">
-          🖼️
+          <Icon name="images" size={22} />
         </button>
         <input ref={fileRef} type="file" accept="image/*,video/*" capture="environment" onChange={onPickFile} hidden />
 
@@ -359,7 +360,7 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
           disabled={recording}
           aria-label="สลับกล้อง"
         >
-          🔄
+          <Icon name="refresh" size={22} />
         </button>
       </div>
     </div>

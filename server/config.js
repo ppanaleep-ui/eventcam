@@ -59,6 +59,15 @@ export const config = {
   // Live updates: fan out via Redis pub/sub across instances when set.
   redisUrl: process.env.REDIS_URL || '',
 
+  // ---- Accounts / auth (organizers must log in; guests never do) -----------
+  // The site owner: whoever registers with this email is auto-approved and can
+  // approve everyone else. Set it before the owner registers.
+  ownerEmail: (process.env.OWNER_EMAIL || '').trim().toLowerCase(),
+  // Secret used to sign login cookies. MUST be set (and stable) in production.
+  jwtSecret: process.env.JWT_SECRET || '',
+  // Login cookie lifetime.
+  sessionDays: num(process.env.SESSION_DAYS, 30),
+
   isProd() {
     return this.env === 'production';
   },

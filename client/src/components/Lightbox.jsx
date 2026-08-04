@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { api } from '../lib/api.js';
+import Icon from './Icon.jsx';
 
 export default function Lightbox({
   photos,
@@ -86,7 +87,7 @@ export default function Lightbox({
           {photo.guestName ? `${isVideo ? '🎬' : '📸'} ${photo.guestName}` : isVideo ? 'วิดีโอในงาน' : 'ภาพในงาน'}
         </div>
         <button className="round-btn" onClick={onClose} aria-label="ปิด">
-          ✕
+          <Icon name="close" size={20} />
         </button>
       </div>
       <div className="img-wrap" onClick={(e) => e.stopPropagation()}>
@@ -98,15 +99,15 @@ export default function Lightbox({
       </div>
       <div className="lb-foot" onClick={(e) => e.stopPropagation()}>
         {canDelete && (
-          <button className="btn danger" onClick={remove} aria-label="ลบ">
-            🗑
+          <button className="btn danger icon-btn" onClick={remove} aria-label="ลบ">
+            <Icon name="trash" size={18} />
           </button>
         )}
-        <button className="btn secondary" onClick={download}>
-          ⬇ บันทึก
+        <button className="btn secondary icon-btn" onClick={download}>
+          <Icon name="download" size={18} /> บันทึก
         </button>
-        <button className="btn" onClick={share}>
-          แชร์
+        <button className="btn icon-btn" onClick={share}>
+          <Icon name="share" size={18} /> แชร์
         </button>
       </div>
     </div>

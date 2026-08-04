@@ -23,13 +23,23 @@ export function createSqliteRepo() {
       db.pragma('busy_timeout = 5000');
 
       db.exec(`
+        CREATE TABLE IF NOT EXISTS users (
+          id            TEXT PRIMARY KEY,
+          email         TEXT NOT NULL UNIQUE,
+          password_hash TEXT NOT NULL,
+          name          TEXT,
+          role          TEXT NOT NULL DEFAULT 'user',
+          status        TEXT NOT NULL DEFAULT 'pending',
+          created_at    INTEGER NOT NULL
+        );
         CREATE TABLE IF NOT EXISTS events (
-          id          TEXT PRIMARY KEY,
-          name        TEXT NOT NULL,
-          host_name   TEXT,
-          admin_token TEXT NOT NULL,
-          created_at  INTEGER NOT NULL,
-          photo_count INTEGER NOT NULL DEFAULT 0
+          id            TEXT PRIMARY KEY,
+          name          TEXT NOT NULL,
+          host_name     TEXT,
+          admin_token   TEXT NOT NULL,
+          owner_user_id TEXT,
+          created_at    INTEGER NOT NULL,
+          photo_count   INTEGER NOT NULL DEFAULT 0
         );
         CREATE TABLE IF NOT EXISTS photos (
           id         TEXT PRIMARY KEY,
@@ -59,11 +69,14 @@ export function createSqliteRepo() {
       addCol('owner_id', 'TEXT');
       addCol('kind', "TEXT NOT NULL DEFAULT 'photo'");
       addCol('duration', 'INTEGER');
+      // Migrate events for account ownership.
+      const eCols = new Set(db.prepare(`PRAGMA table_info(events)`).all().map((c) => c.name));
+      if (!eCols.has('owner_user_id')) db.exec(`ALTER TABLE events ADD COLUMN owner_user_id TEXT`);
 
       stmts = {
         insertEvent: db.prepare(
-          `INSERT INTO events (id, name, host_name, admin_token, created_at)
-           VALUES (@id, @name, @host_name, @admin_token, @created_at)`
+          `INSERT INTO events (id, name, host_name, admin_token, owner_user_id, created_at)
+           VALUES (@id, @name, @host_name, @admin_token, @owner_user_id, @created_at)`
         ),
         getEvent: db.prepare(`SELECT * FROM events WHERE id = ?`),
         insertPhoto: db.prepare(
@@ -132,6 +145,32 @@ export function createSqliteRepo() {
 
     async deleteEvent(id) {
       db.prepare(`DELETE FROM events WHERE id = ?`).run(id); // photos cascade
+    },
+
+    async listEventsByOwner(userId) {
+      return db
+        .prepare(`SELECT * FROM events WHERE owner_user_id = ? ORDER BY created_at DESC`)
+        .all(userId);
+    },
+
+    // ---- users ----
+    async createUser(u) {
+      db.prepare(
+        `INSERT INTO users (id, email, password_hash, name, role, status, created_at)
+         VALUES (@id, @email, @password_hash, @name, @role, @status, @created_at)`
+      ).run(u);
+    },
+    async getUserByEmail(email) {
+      return db.prepare(`SELECT * FROM users WHERE email = ?`).get(email) || null;
+    },
+    async getUserById(id) {
+      return db.prepare(`SELECT * FROM users WHERE id = ?`).get(id) || null;
+    },
+    async listUsers() {
+      return db.prepare(`SELECT * FROM users ORDER BY created_at DESC`).all();
+    },
+    async setUserStatus(id, status) {
+      db.prepare(`UPDATE users SET status = ? WHERE id = ?`).run(status, id);
     },
   };
 }

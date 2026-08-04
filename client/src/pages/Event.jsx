@@ -8,6 +8,7 @@ import Album from '../components/Album.jsx';
 import Invite from '../components/Invite.jsx';
 import NameGate from '../components/NameGate.jsx';
 import Toast from '../components/Toast.jsx';
+import Icon from '../components/Icon.jsx';
 
 export default function Event() {
   const { id } = useParams();
@@ -23,7 +24,9 @@ export default function Event() {
   const seen = useRef(new Set());
   const pollRef = useRef(null);
   const adminToken = getAdminToken(id);
-  const isHost = !!adminToken;
+  // Host = holds the admin token on this device, or is the signed-in owner
+  // (the server confirms the latter via the session cookie in `event.isHost`).
+  const isHost = !!adminToken || !!event?.isHost;
 
   const showToast = useCallback((msg) => {
     setToast(msg);
@@ -55,7 +58,7 @@ export default function Event() {
     let alive = true;
     (async () => {
       try {
-        const ev = await api.getEvent(id);
+        const ev = await api.getEvent(id, adminToken);
         if (!alive) return;
         setEvent(ev);
         setCount(ev.photoCount);
@@ -161,37 +164,41 @@ export default function Event() {
             <b>{event.name}</b>
             <span>
               {live && <span className="live-dot" />}
-              {live ? 'Live' : 'Connecting…'}
+              {live ? 'สด' : 'กำลังเชื่อมต่อ…'}
             </span>
           </div>
-          <div className="count-pill">{count} 📸</div>
+          <div className="count-pill"><Icon name="images" size={15} /> {count}</div>
         </header>
 
-        <div className="tab-body">
+        <div className="tab-body" key={tab}>
           {tab === 'camera' && (
             <Camera eventId={id} guestName={guest} onUploaded={addPhoto} onToast={showToast} />
           )}
           {tab === 'album' && (
-            <Album
-              eventId={id}
-              photos={photos}
-              setPhotos={setPhotos}
-              count={count}
-              isHost={isHost}
-              adminToken={adminToken}
-              onDeleted={removePhoto}
-              onToast={showToast}
-            />
+            <div className="tab-anim">
+              <Album
+                eventId={id}
+                photos={photos}
+                setPhotos={setPhotos}
+                count={count}
+                isHost={isHost}
+                adminToken={adminToken}
+                onDeleted={removePhoto}
+                onToast={showToast}
+              />
+            </div>
           )}
           {tab === 'invite' && (
-            <Invite event={event} isHost={isHost} adminToken={adminToken} onToast={showToast} />
+            <div className="tab-anim">
+              <Invite event={event} isHost={isHost} adminToken={adminToken} onToast={showToast} />
+            </div>
           )}
         </div>
 
-        <nav className="tabbar">
-          <TabBtn active={tab === 'camera'} onClick={() => setTab('camera')} ico="📷" label="Camera" />
-          <TabBtn active={tab === 'album'} onClick={() => setTab('album')} ico="🖼️" label={`Album`} />
-          <TabBtn active={tab === 'invite'} onClick={() => setTab('invite')} ico="🔗" label="Invite" />
+        <nav className="tabbar glass">
+          <TabBtn active={tab === 'camera'} onClick={() => setTab('camera')} ico="camera" label="กล้อง" />
+          <TabBtn active={tab === 'album'} onClick={() => setTab('album')} ico="images" label="อัลบั้ม" />
+          <TabBtn active={tab === 'invite'} onClick={() => setTab('invite')} ico="qr" label="เชิญ" />
         </nav>
       </div>
 
@@ -211,7 +218,7 @@ export default function Event() {
 function TabBtn({ active, onClick, ico, label }) {
   return (
     <button className={active ? 'active' : ''} onClick={onClick}>
-      <span className="ico">{ico}</span>
+      <span className="ico"><Icon name={ico} size={23} strokeWidth={active ? 2.4 : 2} /></span>
       {label}
     </button>
   );

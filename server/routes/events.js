@@ -8,6 +8,7 @@ import { db } from '../db/index.js';
 import { storage } from '../storage/index.js';
 import { subscribe, broadcast } from '../sse.js';
 import { ownerId } from './photos.js';
+import { requireAuth, requireApproved } from '../auth.js';
 
 const router = Router();
 
@@ -35,20 +36,28 @@ function adminToken(req) {
   return req.get('x-admin-token') || req.query.token || '';
 }
 function isHost(req, event) {
+  // Host = holds the event's admin token, OR is the signed-in account that owns
+  // it, OR is the site owner.
   const t = adminToken(req);
-  return !!t && !!event.admin_token && t === event.admin_token;
+  if (t && event.admin_token && t === event.admin_token) return true;
+  if (req.user) {
+    if (event.owner_user_id && event.owner_user_id === req.user.id) return true;
+    if (req.user.role === 'owner') return true;
+  }
+  return false;
 }
 
-// Create an event.
-router.post('/', createLimiter, async (req, res) => {
+// Create an event — organizers only, and only once approved.
+router.post('/', createLimiter, requireAuth, requireApproved, async (req, res) => {
   const name = String(req.body?.name || '').trim().slice(0, 80) || 'Untitled Event';
-  const hostName = String(req.body?.hostName || '').trim().slice(0, 60) || null;
+  const hostName = String(req.body?.hostName || '').trim().slice(0, 60) || req.user.name || null;
 
   const event = {
     id: nanoid(10),
     name,
     host_name: hostName,
     admin_token: nanoid(24),
+    owner_user_id: req.user.id,
     created_at: Date.now(),
   };
   await db().createEvent(event);
@@ -57,6 +66,14 @@ router.post('/', createLimiter, async (req, res) => {
     ...publicEvent({ ...event, photo_count: 0 }),
     adminToken: event.admin_token, // returned once, to the creator only
     joinUrl: eventPublicUrl(req, event.id),
+  });
+});
+
+// Events owned by the signed-in organizer (server-backed admin dashboard).
+router.get('/mine', requireAuth, async (req, res) => {
+  const rows = await db().listEventsByOwner(req.user.id);
+  res.json({
+    events: rows.map((e) => ({ ...publicEvent(e), adminToken: e.admin_token, joinUrl: eventPublicUrl(req, e.id) })),
   });
 });
 

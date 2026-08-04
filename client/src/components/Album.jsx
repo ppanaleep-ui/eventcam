@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api.js';
 import { getGuestId } from '../lib/guest.js';
 import Lightbox from './Lightbox.jsx';
+import Icon from './Icon.jsx';
 
 export default function Album({ eventId, photos, setPhotos, count, isHost, adminToken, onDeleted, onToast }) {
   const [active, setActive] = useState(null); // index into photos for lightbox
@@ -49,11 +50,9 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
     return (
       <div className="album">
         <div className="empty">
-          <div className="big">🖼️</div>
-          <b>No photos yet</b>
-          <span style={{ color: 'var(--muted)' }}>
-            Be the first — head to the Camera tab and snap something.
-          </span>
+          <div className="empty-ic"><Icon name="images" size={30} /></div>
+          <b>ยังไม่มีรูป</b>
+          <span style={{ color: 'var(--muted)' }}>เป็นคนแรก — ไปที่แท็บกล้องแล้วถ่ายเลย</span>
         </div>
       </div>
     );
@@ -68,9 +67,13 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
               src={p.thumbUrl || p.url}
               alt={p.guestName ? `ภาพโดย ${p.guestName}` : 'ภาพในงาน'}
               loading="lazy"
+              onLoad={(e) => e.currentTarget.classList.add('loaded')}
             />
             {p.kind === 'video' && (
-              <span className="vid-badge">▶{p.duration ? ` ${p.duration}s` : ''}</span>
+              <>
+                <span className="vid-play"><Icon name="play" size={20} /></span>
+                {p.duration ? <span className="vid-badge">{p.duration}s</span> : null}
+              </>
             )}
             {p.guestName && <div className="who">{p.guestName}</div>}
           </button>

@@ -17,6 +17,10 @@ services:
       NODE_ENV: production
       PORT: 3000
       PUBLIC_URL: http://localhost:3000
+      # Auth: set OWNER_EMAIL to your email, then register with it to become the
+      # site owner (who approves other organizers). Use a long random JWT_SECRET.
+      OWNER_EMAIL: owner@example.com
+      JWT_SECRET: change-me-to-a-long-random-string
       DATABASE_URL: postgres://eventcam:eventcam@db:5432/eventcam
       REDIS_URL: redis://redis:6379
       S3_BUCKET: eventcam

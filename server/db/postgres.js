@@ -22,6 +22,17 @@ export async function createPostgresRepo() {
   return {
     async init() {
       await q(`
+        CREATE TABLE IF NOT EXISTS users (
+          id            TEXT PRIMARY KEY,
+          email         TEXT NOT NULL UNIQUE,
+          password_hash TEXT NOT NULL,
+          name          TEXT,
+          role          TEXT NOT NULL DEFAULT 'user',
+          status        TEXT NOT NULL DEFAULT 'pending',
+          created_at    BIGINT NOT NULL
+        );
+      `);
+      await q(`
         CREATE TABLE IF NOT EXISTS events (
           id          TEXT PRIMARY KEY,
           name        TEXT NOT NULL,
@@ -31,6 +42,7 @@ export async function createPostgresRepo() {
           photo_count INTEGER NOT NULL DEFAULT 0
         );
       `);
+      await q(`ALTER TABLE events ADD COLUMN IF NOT EXISTS owner_user_id TEXT`);
       await q(`
         CREATE TABLE IF NOT EXISTS photos (
           id         TEXT PRIMARY KEY,
@@ -60,9 +72,9 @@ export async function createPostgresRepo() {
 
     async createEvent(e) {
       await q(
-        `INSERT INTO events (id, name, host_name, admin_token, created_at)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [e.id, e.name, e.host_name, e.admin_token, e.created_at]
+        `INSERT INTO events (id, name, host_name, admin_token, owner_user_id, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [e.id, e.name, e.host_name, e.admin_token, e.owner_user_id, e.created_at]
       );
     },
 
@@ -144,6 +156,38 @@ export async function createPostgresRepo() {
 
     async deleteEvent(id) {
       await q(`DELETE FROM events WHERE id = $1`, [id]); // photos cascade
+    },
+
+    async listEventsByOwner(userId) {
+      const { rows } = await q(
+        `SELECT * FROM events WHERE owner_user_id = $1 ORDER BY created_at DESC`,
+        [userId]
+      );
+      return rows;
+    },
+
+    // ---- users ----
+    async createUser(u) {
+      await q(
+        `INSERT INTO users (id, email, password_hash, name, role, status, created_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [u.id, u.email, u.password_hash, u.name, u.role, u.status, u.created_at]
+      );
+    },
+    async getUserByEmail(email) {
+      const { rows } = await q(`SELECT * FROM users WHERE email = $1`, [email]);
+      return rows[0] || null;
+    },
+    async getUserById(id) {
+      const { rows } = await q(`SELECT * FROM users WHERE id = $1`, [id]);
+      return rows[0] || null;
+    },
+    async listUsers() {
+      const { rows } = await q(`SELECT * FROM users ORDER BY created_at DESC`);
+      return rows;
+    },
+    async setUserStatus(id, status) {
+      await q(`UPDATE users SET status = $1 WHERE id = $2`, [status, id]);
     },
   };
 }
