@@ -61,8 +61,9 @@ export const config = {
 
   // ---- Accounts / auth (organizers must log in; guests never do) -----------
   // The site owner: whoever registers with this email is auto-approved and can
-  // approve everyone else. Set it before the owner registers.
-  ownerEmail: (process.env.OWNER_EMAIL || '').trim().toLowerCase(),
+  // approve everyone else. Defaults to the project owner; override with the
+  // OWNER_EMAIL env var if you deploy your own instance.
+  ownerEmail: (process.env.OWNER_EMAIL || 'maxatron.ss@gmail.com').trim().toLowerCase(),
   // Secret used to sign login cookies. MUST be set (and stable) in production.
   jwtSecret: process.env.JWT_SECRET || '',
   // Login cookie lifetime.
