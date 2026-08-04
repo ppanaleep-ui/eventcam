@@ -149,6 +149,50 @@ router.get('/:id/photos', async (req, res) => {
   res.json({ items, nextCursor, total: e.photo_count });
 });
 
+// Toggle a like (heart) on a photo/video. Identified by the guest's device id.
+router.post('/:id/photos/:photoId/like', async (req, res) => {
+  const e = await db().getEvent(req.params.id);
+  if (!e) return res.status(404).json({ error: 'Event not found' });
+  const gid = ownerId(req);
+  if (!gid) return res.status(400).json({ error: 'Missing guest id' });
+  const photo = await db().getPhoto(e.id, req.params.photoId);
+  if (!photo) return res.status(404).json({ error: 'Photo not found' });
+  const r = await db().toggleLike(photo.id, gid);
+  broadcast(e.id, 'like', { id: photo.id, likeCount: r.likeCount });
+  res.json(r);
+});
+
+// Comments.
+router.get('/:id/photos/:photoId/comments', async (req, res) => {
+  const e = await db().getEvent(req.params.id);
+  if (!e) return res.status(404).json({ error: 'Event not found' });
+  const rows = await db().listComments(req.params.photoId);
+  res.set('Cache-Control', 'no-cache');
+  res.json({ items: rows.map((c) => ({ id: c.id, name: c.name, text: c.text, createdAt: Number(c.created_at) })) });
+});
+
+router.post('/:id/photos/:photoId/comments', async (req, res) => {
+  const e = await db().getEvent(req.params.id);
+  if (!e) return res.status(404).json({ error: 'Event not found' });
+  const photo = await db().getPhoto(e.id, req.params.photoId);
+  if (!photo) return res.status(404).json({ error: 'Photo not found' });
+  const text = String(req.body?.text || '').trim().slice(0, 500);
+  if (!text) return res.status(400).json({ error: 'Empty comment' });
+  const c = {
+    id: nanoid(16),
+    photo_id: photo.id,
+    event_id: e.id,
+    guest_id: ownerId(req) || null,
+    name: String(req.body?.name || req.body?.guestName || '').trim().slice(0, 60) || null,
+    text,
+    created_at: Date.now(),
+  };
+  const count = await db().addComment(c);
+  const dto = { id: c.id, name: c.name, text: c.text, createdAt: c.created_at };
+  broadcast(e.id, 'comment', { id: photo.id, commentCount: count, comment: dto });
+  res.status(201).json({ comment: dto, commentCount: count });
+});
+
 // Shared DTO builder — the wire shape guests see. Works for both DB backends.
 // ownerId is an opaque random device id; the client compares it to its own to
 // decide whether to show a "delete my own" button.
@@ -168,12 +212,19 @@ export function toDto(p) {
     height: p.height,
     duration: p.duration || null,
     createdAt: Number(p.created_at),
+    likeCount: p.like_count || 0,
+    liked: !!p.liked,
+    commentCount: p.comment_count || 0,
     url: fullKey ? s.urlFor(p.event_id, fullKey) : null,
+    // For videos with no generated poster, leave thumbUrl null so the client
+    // shows a play placeholder instead of putting the video file in an <img>.
     thumbUrl: thumbKey
       ? s.urlFor(p.event_id, thumbKey)
-      : fullKey
-        ? s.urlFor(p.event_id, fullKey)
-        : null,
+      : p.kind === 'video'
+        ? null
+        : fullKey
+          ? s.urlFor(p.event_id, fullKey)
+          : null,
   };
 }
 

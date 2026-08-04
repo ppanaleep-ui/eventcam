@@ -67,6 +67,24 @@ export const api = {
     return `/api/events/${id}/qr`;
   },
 
+  // ---- likes / comments ----
+  toggleLike(id, photoId) {
+    return fetch(`/api/events/${id}/photos/${photoId}/like`, {
+      method: 'POST',
+      headers: { 'x-guest-id': getGuestId() },
+    }).then(json);
+  },
+  listComments(id, photoId) {
+    return fetch(`/api/events/${id}/photos/${photoId}/comments`).then(json);
+  },
+  addComment(id, photoId, { text, name }) {
+    return fetch(`/api/events/${id}/photos/${photoId}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-guest-id': getGuestId() },
+      body: JSON.stringify({ text, name }),
+    }).then(json);
+  },
+
   // ---- Delete (owner or host) ----
   // Sends both the guest id (owner) and, if present, the admin token (host).
   deletePhoto(id, photoId, token) {

@@ -58,6 +58,8 @@ export async function createPostgresRepo() {
           full_key   TEXT,
           thumb_key  TEXT,
           hidden     INTEGER NOT NULL DEFAULT 0,
+          like_count INTEGER NOT NULL DEFAULT 0,
+          comment_count INTEGER NOT NULL DEFAULT 0,
           created_at BIGINT NOT NULL
         );
       `);
@@ -66,6 +68,27 @@ export async function createPostgresRepo() {
       await q(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'photo'`);
       await q(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS duration INTEGER`);
       await q(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS hidden INTEGER NOT NULL DEFAULT 0`);
+      await q(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS like_count INTEGER NOT NULL DEFAULT 0`);
+      await q(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS comment_count INTEGER NOT NULL DEFAULT 0`);
+      await q(`
+        CREATE TABLE IF NOT EXISTS likes (
+          photo_id TEXT NOT NULL REFERENCES photos(id) ON DELETE CASCADE,
+          guest_id TEXT NOT NULL,
+          PRIMARY KEY (photo_id, guest_id)
+        );
+      `);
+      await q(`
+        CREATE TABLE IF NOT EXISTS comments (
+          id         TEXT PRIMARY KEY,
+          photo_id   TEXT NOT NULL REFERENCES photos(id) ON DELETE CASCADE,
+          event_id   TEXT NOT NULL,
+          guest_id   TEXT,
+          name       TEXT,
+          text       TEXT NOT NULL,
+          created_at BIGINT NOT NULL
+        );
+      `);
+      await q(`CREATE INDEX IF NOT EXISTS idx_comments_photo ON comments (photo_id, created_at ASC)`);
       await q(
         `CREATE INDEX IF NOT EXISTS idx_photos_event_created
            ON photos (event_id, created_at DESC);`
@@ -105,15 +128,17 @@ export async function createPostgresRepo() {
     },
 
     async listPhotos(eventId, before, limit, viewer = {}) {
-      const params = [eventId, before];
-      let where = `event_id = $1 AND created_at < $2`;
+      const vid = viewer.viewerId || '';
+      const params = [vid, eventId, before]; // $1 = viewer id for the `liked` subquery
+      let where = `event_id = $2 AND created_at < $3`;
       if (!viewer.isHost) {
-        params.push(viewer.viewerId || '');
+        params.push(vid);
         where += ` AND (hidden = 0 OR owner_id = $${params.length})`;
       }
       params.push(limit);
       const { rows } = await q(
-        `SELECT * FROM photos WHERE ${where} ORDER BY created_at DESC LIMIT $${params.length}`,
+        `SELECT *, EXISTS(SELECT 1 FROM likes l WHERE l.photo_id = photos.id AND l.guest_id = $1) AS liked
+         FROM photos WHERE ${where} ORDER BY created_at DESC LIMIT $${params.length}`,
         params
       );
       return rows;
@@ -194,6 +219,46 @@ export async function createPostgresRepo() {
     },
     async setUserStatus(id, status) {
       await q(`UPDATE users SET status = $1 WHERE id = $2`, [status, id]);
+    },
+
+    // ---- likes / comments ----
+    async toggleLike(photoId, guestId) {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const { rowCount } = await client.query(`SELECT 1 FROM likes WHERE photo_id=$1 AND guest_id=$2`, [photoId, guestId]);
+        let liked;
+        if (rowCount) {
+          await client.query(`DELETE FROM likes WHERE photo_id=$1 AND guest_id=$2`, [photoId, guestId]);
+          await client.query(`UPDATE photos SET like_count = GREATEST(0, like_count - 1) WHERE id=$1`, [photoId]);
+          liked = false;
+        } else {
+          await client.query(`INSERT INTO likes (photo_id, guest_id) VALUES ($1,$2)`, [photoId, guestId]);
+          await client.query(`UPDATE photos SET like_count = like_count + 1 WHERE id=$1`, [photoId]);
+          liked = true;
+        }
+        const { rows } = await client.query(`SELECT like_count FROM photos WHERE id=$1`, [photoId]);
+        await client.query('COMMIT');
+        return { liked, likeCount: rows[0] ? Number(rows[0].like_count) : 0 };
+      } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
+      } finally {
+        client.release();
+      }
+    },
+    async addComment(c) {
+      await q(
+        `INSERT INTO comments (id, photo_id, event_id, guest_id, name, text, created_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [c.id, c.photo_id, c.event_id, c.guest_id, c.name, c.text, c.created_at]
+      );
+      const { rows } = await q(`UPDATE photos SET comment_count = comment_count + 1 WHERE id=$1 RETURNING comment_count`, [c.photo_id]);
+      return rows[0] ? Number(rows[0].comment_count) : 0;
+    },
+    async listComments(photoId) {
+      const { rows } = await q(`SELECT * FROM comments WHERE photo_id=$1 ORDER BY created_at ASC`, [photoId]);
+      return rows;
     },
   };
 }

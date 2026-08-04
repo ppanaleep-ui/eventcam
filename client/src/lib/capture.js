@@ -89,7 +89,12 @@ export async function produceFromImageFile(file, film, opts) {
   return produceImages(img, sw, sh, film, null, opts);
 }
 
-/** Poster thumbnail + dimensions from a video Blob (first frame). */
+/**
+ * Poster thumbnail + dimensions from a video Blob (first frame).
+ * Never hangs: if the device can't decode a frame (common on iOS Safari) it
+ * resolves with a null thumbnail after a short timeout so the review screen
+ * always appears.
+ */
 export function videoPoster(blob) {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(blob);
@@ -97,31 +102,54 @@ export function videoPoster(blob) {
     video.preload = 'metadata';
     video.muted = true;
     video.playsInline = true;
-    video.src = url;
-    const done = async () => {
-      const sw = video.videoWidth || 720;
-      const sh = video.videoHeight || 1280;
-      const t = fit(sw, sh, MAX_THUMB);
-      const c = document.createElement('canvas');
-      c.width = t.w;
-      c.height = t.h;
-      try {
-        c.getContext('2d').drawImage(video, 0, 0, t.w, t.h);
-      } catch {}
-      const thumbBlob = await canvasToBlob(c, THUMB_Q);
+    let settled = false;
+
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
       URL.revokeObjectURL(url);
-      resolve({ thumbBlob, width: sw, height: sh, duration: Math.round(video.duration) || null });
+      resolve(result);
     };
+
+    const draw = async () => {
+      const sw = video.videoWidth || 0;
+      const sh = video.videoHeight || 0;
+      let thumbBlob = null;
+      if (sw && sh) {
+        const t = fit(sw, sh, MAX_THUMB);
+        const c = document.createElement('canvas');
+        c.width = t.w;
+        c.height = t.h;
+        try {
+          c.getContext('2d').drawImage(video, 0, 0, t.w, t.h);
+          thumbBlob = await canvasToBlob(c, THUMB_Q);
+        } catch {
+          /* tainted/undecodable — leave poster null */
+        }
+      }
+      finish({ thumbBlob, width: sw, height: sh, duration: Math.round(video.duration) || null });
+    };
+
+    // Hard cap so onstop() never blocks the review UI.
+    const timer = setTimeout(() => {
+      finish({ thumbBlob: null, width: video.videoWidth || 0, height: video.videoHeight || 0, duration: Math.round(video.duration) || null });
+    }, 3500);
+
     video.onloadeddata = () => {
-      if (video.duration && video.currentTime < 0.1) {
-        video.currentTime = Math.min(0.1, video.duration / 2);
-        video.onseeked = done;
-      } else done();
+      if (video.duration && Number.isFinite(video.duration) && video.currentTime < 0.1) {
+        video.onseeked = draw;
+        try {
+          video.currentTime = Math.min(0.1, video.duration / 2);
+        } catch {
+          draw();
+        }
+      } else {
+        draw();
+      }
     };
-    video.onerror = () => {
-      URL.revokeObjectURL(url);
-      resolve({ thumbBlob: null, width: 0, height: 0, duration: null });
-    };
+    video.onerror = () => finish({ thumbBlob: null, width: 0, height: 0, duration: null });
+    video.src = url;
   });
 }
 

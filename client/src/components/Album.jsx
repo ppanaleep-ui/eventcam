@@ -1,14 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api.js';
 import { getGuestId } from '../lib/guest.js';
+import { favSet } from '../lib/favorites.js';
 import Lightbox from './Lightbox.jsx';
 import Icon from './Icon.jsx';
 
-export default function Album({ eventId, photos, setPhotos, count, isHost, adminToken, onDeleted, onToast }) {
-  const [active, setActive] = useState(null); // index into photos for lightbox
+export default function Album({ eventId, photos, setPhotos, count, isHost, adminToken, onDeleted, onUpdate, onToast }) {
+  const [active, setActive] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [done, setDone] = useState(false);
+  const [favOnly, setFavOnly] = useState(false);
   const sentinel = useRef(null);
+
+  const favs = favSet(eventId);
+  const shown = favOnly ? photos.filter((p) => favs.has(p.id)) : photos;
 
   const loadMore = useCallback(async () => {
     if (loadingMore || done || photos.length === 0) return;
@@ -16,35 +21,26 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
     try {
       const oldest = photos[photos.length - 1].createdAt;
       const { items } = await api.listPhotos(eventId, { before: oldest, limit: 60, token: adminToken });
-      if (items.length === 0) {
-        setDone(true);
-      } else {
+      if (items.length === 0) setDone(true);
+      else
         setPhotos((prev) => {
           const ids = new Set(prev.map((p) => p.id));
-          const fresh = items.filter((p) => !ids.has(p.id));
-          return [...prev, ...fresh];
+          return [...prev, ...items.filter((p) => !ids.has(p.id))];
         });
-      }
     } catch {
-      /* keep the button available to retry */
+      /* keep the button to retry */
     } finally {
       setLoadingMore(false);
     }
-  }, [eventId, photos, loadingMore, done, setPhotos]);
+  }, [eventId, photos, loadingMore, done, setPhotos, adminToken]);
 
-  // Auto-load older photos as the sentinel scrolls into view.
   useEffect(() => {
     const el = sentinel.current;
-    if (!el) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) loadMore();
-      },
-      { rootMargin: '400px' }
-    );
+    if (!el || favOnly) return;
+    const io = new IntersectionObserver((e) => e[0].isIntersecting && loadMore(), { rootMargin: '400px' });
     io.observe(el);
     return () => io.disconnect();
-  }, [loadMore]);
+  }, [loadMore, favOnly]);
 
   if (photos.length === 0) {
     return (
@@ -60,42 +56,58 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
 
   return (
     <div className="album">
-      <div className="grid">
-        {photos.map((p, i) => (
-          <button key={p.id} className="tile" onClick={() => setActive(i)}>
-            <img
-              src={p.thumbUrl || p.url}
-              alt={p.guestName ? `ภาพโดย ${p.guestName}` : 'ภาพในงาน'}
-              loading="lazy"
-              onLoad={(e) => e.currentTarget.classList.add('loaded')}
-            />
-            {p.kind === 'video' && (
-              <>
-                <span className="vid-play"><Icon name="play" size={20} /></span>
-                {p.duration ? <span className="vid-badge">{p.duration}s</span> : null}
-              </>
-            )}
-            {p.hidden && <span className="hidden-badge"><Icon name="eyeOff" size={13} /></span>}
-            {p.guestName && <div className="who">{p.guestName}</div>}
-          </button>
-        ))}
+      <div className="album-head">
+        <span className="album-count">{count} รายการ</span>
+        <button className={`fav-filter ${favOnly ? 'on' : ''}`} onClick={() => setFavOnly((v) => !v)}>
+          <Icon name="star" size={16} filled={favOnly} /> รายการโปรด
+        </button>
       </div>
 
+      {favOnly && shown.length === 0 ? (
+        <div className="empty" style={{ padding: '48px 20px' }}>
+          <div className="empty-ic"><Icon name="star" size={28} /></div>
+          <b>ยังไม่มีรายการโปรด</b>
+          <span style={{ color: 'var(--muted)' }}>แตะรูป แล้วกด ⭐ เพื่อเก็บไว้ดาวน์โหลดทีหลัง</span>
+        </div>
+      ) : (
+        <div className="grid">
+          {shown.map((p, i) => (
+            <button key={p.id} className="tile" onClick={() => setActive(i)}>
+              {p.kind === 'video' && !p.thumbUrl ? (
+                <div className="vid-holder" />
+              ) : (
+                <img
+                  src={p.thumbUrl || p.url}
+                  alt={p.guestName ? `ภาพโดย ${p.guestName}` : 'ภาพในงาน'}
+                  loading="lazy"
+                  onLoad={(e) => e.currentTarget.classList.add('loaded')}
+                />
+              )}
+              {p.kind === 'video' && <span className="vid-play"><Icon name="play" size={20} /></span>}
+              {favs.has(p.id) && <span className="fav-badge"><Icon name="star" size={12} filled /></span>}
+              {p.hidden && <span className="hidden-badge"><Icon name="eyeOff" size={13} /></span>}
+              {(p.likeCount > 0 || p.commentCount > 0) && (
+                <div className="tile-stats">
+                  {p.likeCount > 0 && <span><Icon name="heart" size={12} filled /> {p.likeCount}</span>}
+                  {p.commentCount > 0 && <span><Icon name="comment" size={12} /> {p.commentCount}</span>}
+                </div>
+              )}
+              {p.guestName && <div className="who">{p.guestName}</div>}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div ref={sentinel} style={{ height: 1 }} />
-      {!done && photos.length < count && (
-        <button
-          className="btn secondary"
-          style={{ margin: '14px auto', maxWidth: 240 }}
-          onClick={loadMore}
-          disabled={loadingMore}
-        >
-          {loadingMore ? 'Loading…' : 'Load more'}
+      {!favOnly && !done && photos.length < count && (
+        <button className="btn secondary" style={{ margin: '14px auto', maxWidth: 240 }} onClick={loadMore} disabled={loadingMore}>
+          {loadingMore ? 'กำลังโหลด…' : 'โหลดเพิ่ม'}
         </button>
       )}
 
-      {active !== null && (
+      {active !== null && shown[active] && (
         <Lightbox
-          photos={photos}
+          photos={shown}
           index={active}
           onClose={() => setActive(null)}
           onIndex={setActive}
@@ -104,6 +116,7 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
           adminToken={adminToken}
           myGuestId={getGuestId()}
           onDeleted={onDeleted}
+          onUpdate={onUpdate}
           onToast={onToast}
         />
       )}

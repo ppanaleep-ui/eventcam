@@ -43,6 +43,11 @@ export default function Event() {
     return true;
   }, []);
 
+  // Patch a photo in place (live like / comment counts).
+  const updatePhoto = useCallback((photoId, patch) => {
+    setPhotos((prev) => prev.map((p) => (p.id === photoId ? { ...p, ...patch } : p)));
+  }, []);
+
   // Remove a photo everywhere (host deleted it).
   const removePhoto = useCallback((photoId) => {
     seen.current.delete(photoId);
@@ -123,6 +128,18 @@ export default function Event() {
     es.addEventListener('event-deleted', () => {
       setStatus('notfound');
     });
+    es.addEventListener('like', (e) => {
+      try {
+        const { id, likeCount } = JSON.parse(e.data);
+        updatePhoto(id, { likeCount });
+      } catch {}
+    });
+    es.addEventListener('comment', (e) => {
+      try {
+        const { id, commentCount } = JSON.parse(e.data);
+        updatePhoto(id, { commentCount });
+      } catch {}
+    });
     es.onerror = () => {
       setLive(false);
       startPolling();
@@ -132,7 +149,7 @@ export default function Event() {
       es.close();
       stopPolling();
     };
-  }, [id, status, addPhoto, removePhoto]);
+  }, [id, status, addPhoto, removePhoto, updatePhoto]);
 
   if (status === 'loading') {
     return (
@@ -184,6 +201,7 @@ export default function Event() {
                 isHost={isHost}
                 adminToken={adminToken}
                 onDeleted={removePhoto}
+                onUpdate={updatePhoto}
                 onToast={showToast}
               />
             </div>
