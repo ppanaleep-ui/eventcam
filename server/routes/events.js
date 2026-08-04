@@ -7,7 +7,7 @@ import { config, eventPublicUrl } from '../config.js';
 import { db } from '../db/index.js';
 import { storage } from '../storage/index.js';
 import { subscribe, broadcast } from '../sse.js';
-import { ownerId } from './photos.js';
+import { ownerId, isHost } from '../eventAuth.js';
 import { requireAuth, requireApproved } from '../auth.js';
 
 const router = Router();
@@ -28,23 +28,6 @@ function publicEvent(e) {
     createdAt: Number(e.created_at),
     photoCount: e.photo_count,
   };
-}
-
-// Host auth: the admin token is handed to the creator once and stored on their
-// device. Timing-safe-ish compare of an opaque random token.
-function adminToken(req) {
-  return req.get('x-admin-token') || req.query.token || '';
-}
-function isHost(req, event) {
-  // Host = holds the event's admin token, OR is the signed-in account that owns
-  // it, OR is the site owner.
-  const t = adminToken(req);
-  if (t && event.admin_token && t === event.admin_token) return true;
-  if (req.user) {
-    if (event.owner_user_id && event.owner_user_id === req.user.id) return true;
-    if (req.user.role === 'owner') return true;
-  }
-  return false;
 }
 
 // Create an event — organizers only, and only once approved.

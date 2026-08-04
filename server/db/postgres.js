@@ -57,6 +57,7 @@ export async function createPostgresRepo() {
           bytes      INTEGER,
           full_key   TEXT,
           thumb_key  TEXT,
+          hidden     INTEGER NOT NULL DEFAULT 0,
           created_at BIGINT NOT NULL
         );
       `);
@@ -64,6 +65,7 @@ export async function createPostgresRepo() {
       await q(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS owner_id TEXT`);
       await q(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'photo'`);
       await q(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS duration INTEGER`);
+      await q(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS hidden INTEGER NOT NULL DEFAULT 0`);
       await q(
         `CREATE INDEX IF NOT EXISTS idx_photos_event_created
            ON photos (event_id, created_at DESC);`
@@ -88,9 +90,9 @@ export async function createPostgresRepo() {
       try {
         await client.query('BEGIN');
         await client.query(
-          `INSERT INTO photos (id, event_id, guest_name, owner_id, kind, filter, width, height, duration, bytes, full_key, thumb_key, created_at)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
-          [p.id, p.event_id, p.guest_name, p.owner_id, p.kind, p.filter, p.width, p.height, p.duration, p.bytes, p.full_key, p.thumb_key, p.created_at]
+          `INSERT INTO photos (id, event_id, guest_name, owner_id, kind, filter, width, height, duration, bytes, full_key, thumb_key, hidden, created_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+          [p.id, p.event_id, p.guest_name, p.owner_id, p.kind, p.filter, p.width, p.height, p.duration, p.bytes, p.full_key, p.thumb_key, p.hidden, p.created_at]
         );
         await client.query(`UPDATE events SET photo_count = photo_count + 1 WHERE id = $1`, [p.event_id]);
         await client.query('COMMIT');
@@ -102,13 +104,17 @@ export async function createPostgresRepo() {
       }
     },
 
-    async listPhotos(eventId, before, limit) {
+    async listPhotos(eventId, before, limit, viewer = {}) {
+      const params = [eventId, before];
+      let where = `event_id = $1 AND created_at < $2`;
+      if (!viewer.isHost) {
+        params.push(viewer.viewerId || '');
+        where += ` AND (hidden = 0 OR owner_id = $${params.length})`;
+      }
+      params.push(limit);
       const { rows } = await q(
-        `SELECT * FROM photos
-         WHERE event_id = $1 AND created_at < $2
-         ORDER BY created_at DESC
-         LIMIT $3`,
-        [eventId, before, limit]
+        `SELECT * FROM photos WHERE ${where} ORDER BY created_at DESC LIMIT $${params.length}`,
+        params
       );
       return rows;
     },

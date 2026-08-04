@@ -26,6 +26,8 @@ const P = {
   sliders: <><path d="M4 8h5M15 8h5" /><circle cx="12" cy="8" r="2.3" /><path d="M4 16h9M19 16h1" /><circle cx="16" cy="16" r="2.3" /></>,
   timer: <><circle cx="12" cy="13" r="8" /><path d="M12 13V9M9 2h6" /></>,
   bolt: <><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" /></>,
+  imagePlus: <><path d="M21 11V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8" /><circle cx="8.5" cy="9" r="1.5" /><path d="m3 17 5-4 3 2.2" /><path d="M17 15v6M14 18h6" /></>,
+  eyeOff: <><path d="M2 12s3.5-7 10-7c2 0 3.8.6 5.3 1.5M22 12s-3.5 7-10 7c-2 0-3.8-.6-5.3-1.5" /><path d="M9.5 9.5a3 3 0 0 0 4.2 4.2" /><path d="m3 3 18 18" /></>,
 };
 
 export default function Icon({ name, size = 22, strokeWidth = 2, className = '', style }) {

@@ -15,7 +15,7 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
     setLoadingMore(true);
     try {
       const oldest = photos[photos.length - 1].createdAt;
-      const { items } = await api.listPhotos(eventId, { before: oldest, limit: 60 });
+      const { items } = await api.listPhotos(eventId, { before: oldest, limit: 60, token: adminToken });
       if (items.length === 0) {
         setDone(true);
       } else {
@@ -75,6 +75,7 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
                 {p.duration ? <span className="vid-badge">{p.duration}s</span> : null}
               </>
             )}
+            {p.hidden && <span className="hidden-badge"><Icon name="eyeOff" size={13} /></span>}
             {p.guestName && <div className="who">{p.guestName}</div>}
           </button>
         ))}

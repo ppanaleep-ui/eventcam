@@ -1419,3 +1419,76 @@ input[type='text']:focus {
   background: var(--accent);
   margin: 4px auto 0;
 }
+
+/* ---------- Review (full-bleed) + visibility toggle + hidden badge ---------- */
+.cam-feed.contain { object-fit: contain; background: #000; }
+
+.camera.ig.review .cam-bottom { gap: 12px; padding: 0 16px; }
+.camera.ig.review .review-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: transparent;
+  padding: 0;
+}
+.camera.ig.review .review-actions .btn { flex: 1; }
+.round-btn.light { background: #fff; color: #111; border: none; }
+
+.vis-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  background: rgba(0, 0, 0, 0.42);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #fff;
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-size: 13.5px;
+}
+.vis-toggle > span:first-of-type { flex: 1; text-align: left; }
+.vis-toggle.off { color: rgba(255, 255, 255, 0.85); }
+.switch {
+  width: 46px;
+  height: 27px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.18s ease;
+}
+.switch i {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.18s ease;
+}
+.switch.on { background: var(--accent); }
+.switch.on i { transform: translateX(19px); }
+
+.grid .tile .hidden-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  border-radius: 999px;
+  padding: 4px 5px;
+  display: flex;
+  align-items: center;
+}
+
+/* Declutter the live film picker a touch */
+.film-chip {
+  padding: 7px 13px;
+  font-size: 12.5px;
+  background: rgba(0, 0, 0, 0.32);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+.film-chip.active { background: #fff; color: #111; border-color: #fff; }

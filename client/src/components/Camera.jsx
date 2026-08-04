@@ -41,6 +41,7 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
   const [recording, setRecording] = useState(false);
   const [recSecs, setRecSecs] = useState(0);
   const [showAdjust, setShowAdjust] = useState(false);
+  const [visible, setVisible] = useState(true); // show this upload to everyone?
 
   const film = getFilm(filmId);
   const aspect = getAspect(aspectId);
@@ -187,11 +188,16 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
     setShot(null);
     setProgress(null);
   }
-  function saveShot() {
+  async function saveShot() {
     if (!shot) return;
     const stamp = Date.now();
-    saveToDevice(shot.fullBlob, shot.kind === 'video' ? `eventcam-${stamp}.${shot.ext || 'webm'}` : `eventcam-${stamp}.jpg`);
-    onToast?.('บันทึกลงเครื่องแล้ว');
+    const fn = shot.kind === 'video' ? `eventcam-${stamp}.${shot.ext || 'mp4'}` : `eventcam-${stamp}.jpg`;
+    try {
+      const r = await saveToDevice(shot.fullBlob, fn);
+      if (r !== 'cancelled') onToast?.('บันทึกลงเครื่องแล้ว');
+    } catch {
+      onToast?.('บันทึกไม่สำเร็จ');
+    }
   }
   async function send() {
     if (!shot) return;
@@ -200,10 +206,10 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
       const dto = await api.uploadMedia(eventId, {
         full: shot.fullBlob, thumb: shot.thumbBlob, guestName, kind: shot.kind,
         filter: shot.kind === 'photo' ? film.id : null, width: shot.width, height: shot.height,
-        duration: shot.duration, onProgress: setProgress,
+        duration: shot.duration, hidden: !visible, onProgress: setProgress,
       });
       onUploaded?.(dto);
-      onToast?.(shot.kind === 'video' ? 'เพิ่มวิดีโอแล้ว ✨' : 'เพิ่มรูปแล้ว ✨');
+      onToast?.(visible ? (shot.kind === 'video' ? 'เพิ่มวิดีโอแล้ว ✨' : 'เพิ่มรูปแล้ว ✨') : 'เพิ่มแบบส่วนตัวแล้ว 🔒');
       retake();
     } catch (err) {
       onToast?.(err.message || 'อัปโหลดไม่สำเร็จ');
@@ -211,20 +217,27 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
     }
   }
 
-  // ---- Review ----
+  // ---- Review (full-bleed) ----
   if (shot) {
     return (
-      <div className="camera">
-        <div className="viewport">
-          {progress !== null && <div className="upload-bar"><div style={{ width: `${Math.round(progress * 100)}%` }} /></div>}
-          {shot.kind === 'video'
-            ? <video className="review-media" src={shot.videoUrl} controls playsInline autoPlay loop muted />
-            : <img className="review-media" src={shot.previewUrl} alt="ภาพที่ถ่าย" />}
-        </div>
-        <div className="review-actions">
-          <button className="btn ghost" onClick={retake} disabled={progress !== null}>ถ่ายใหม่</button>
-          <button className="round-btn" onClick={saveShot} disabled={progress !== null} aria-label="บันทึกลงเครื่อง"><Icon name="download" size={20} /></button>
-          <button className="btn" onClick={send} disabled={progress !== null}>{progress !== null ? `กำลังส่ง ${Math.round(progress * 100)}%` : 'เพิ่มลงอัลบั้ม'}</button>
+      <div className="camera ig review">
+        {shot.kind === 'video'
+          ? <video className="cam-feed contain" src={shot.videoUrl} controls playsInline autoPlay loop muted />
+          : <img className="cam-feed contain" src={shot.previewUrl} alt="ภาพที่ถ่าย" />}
+        {progress !== null && <div className="upload-bar"><div style={{ width: `${Math.round(progress * 100)}%` }} /></div>}
+        <div className="cam-scrim bottom" />
+
+        <div className="cam-bottom">
+          <button className={`vis-toggle ${visible ? '' : 'off'}`} onClick={() => setVisible((v) => !v)} disabled={progress !== null}>
+            <Icon name={visible ? 'user' : 'eyeOff'} size={18} />
+            <span>{visible ? 'ทุกคนในงานเห็นได้' : 'ส่วนตัว (เฉพาะคุณ & เจ้าของงาน)'}</span>
+            <span className={`switch ${visible ? 'on' : ''}`} aria-hidden="true"><i /></span>
+          </button>
+          <div className="review-actions">
+            <button className="btn ghost" onClick={retake} disabled={progress !== null}>ถ่ายใหม่</button>
+            <button className="round-btn light" onClick={saveShot} disabled={progress !== null} aria-label="บันทึกลงเครื่อง"><Icon name="download" size={20} /></button>
+            <button className="btn" onClick={send} disabled={progress !== null}>{progress !== null ? `กำลังส่ง ${Math.round(progress * 100)}%` : 'เพิ่มลงอัลบั้ม'}</button>
+          </div>
         </div>
       </div>
     );
@@ -237,9 +250,6 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
       <div className="cam-scrim top" />
       <div className="cam-scrim bottom" />
 
-      {camState === 'live' && mode === 'photo' && aspect.ratio && (
-        <div className="frame-guide" style={{ aspectRatio: String(aspect.ratio) }} />
-      )}
       {countdown !== null && <div className="countdown">{countdown}</div>}
       {recording && <div className="rec-badge"><span className="rec-dot" /> {String(recSecs).padStart(2, '0')}s / {MAX_VIDEO_SECS}s</div>}
 
@@ -298,8 +308,10 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
         )}
 
         <div className="shutter-row">
-          <button className="thumb-btn" onClick={() => fileRef.current?.click()} aria-label="คลังภาพ"><Icon name="images" size={24} /></button>
-          <input ref={fileRef} type="file" accept="image/*,video/*" capture="environment" onChange={onPickFile} hidden />
+          <button className="thumb-btn" onClick={() => fileRef.current?.click()} aria-label="อัปโหลดจากเครื่อง">
+            <Icon name="imagePlus" size={24} />
+          </button>
+          <input ref={fileRef} type="file" accept="image/*,video/*" onChange={onPickFile} hidden />
           <button
             className={`shutter ${mode === 'video' ? 'video' : ''} ${recording ? 'recording' : ''}`}
             onClick={onShutter}

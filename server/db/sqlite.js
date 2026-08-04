@@ -54,6 +54,7 @@ export function createSqliteRepo() {
           bytes      INTEGER,
           full_key   TEXT,
           thumb_key  TEXT,
+          hidden     INTEGER NOT NULL DEFAULT 0,
           created_at INTEGER NOT NULL,
           FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
         );
@@ -69,6 +70,7 @@ export function createSqliteRepo() {
       addCol('owner_id', 'TEXT');
       addCol('kind', "TEXT NOT NULL DEFAULT 'photo'");
       addCol('duration', 'INTEGER');
+      addCol('hidden', 'INTEGER NOT NULL DEFAULT 0');
       // Migrate events for account ownership.
       const eCols = new Set(db.prepare(`PRAGMA table_info(events)`).all().map((c) => c.name));
       if (!eCols.has('owner_user_id')) db.exec(`ALTER TABLE events ADD COLUMN owner_user_id TEXT`);
@@ -80,8 +82,8 @@ export function createSqliteRepo() {
         ),
         getEvent: db.prepare(`SELECT * FROM events WHERE id = ?`),
         insertPhoto: db.prepare(
-          `INSERT INTO photos (id, event_id, guest_name, owner_id, kind, filter, width, height, duration, bytes, full_key, thumb_key, created_at)
-           VALUES (@id, @event_id, @guest_name, @owner_id, @kind, @filter, @width, @height, @duration, @bytes, @full_key, @thumb_key, @created_at)`
+          `INSERT INTO photos (id, event_id, guest_name, owner_id, kind, filter, width, height, duration, bytes, full_key, thumb_key, hidden, created_at)
+           VALUES (@id, @event_id, @guest_name, @owner_id, @kind, @filter, @width, @height, @duration, @bytes, @full_key, @thumb_key, @hidden, @created_at)`
         ),
         bump: db.prepare(`UPDATE events SET photo_count = photo_count + 1 WHERE id = ?`),
         dec: db.prepare(
@@ -110,15 +112,18 @@ export function createSqliteRepo() {
       })();
     },
 
-    async listPhotos(eventId, before, limit) {
+    async listPhotos(eventId, before, limit, viewer = {}) {
+      // Non-hosts see public photos + their own hidden ones; hosts see all.
+      const params = [eventId, before];
+      let where = `event_id = ? AND created_at < ?`;
+      if (!viewer.isHost) {
+        where += ` AND (hidden = 0 OR owner_id = ?)`;
+        params.push(viewer.viewerId || '');
+      }
+      params.push(limit);
       return db
-        .prepare(
-          `SELECT * FROM photos
-           WHERE event_id = ? AND created_at < ?
-           ORDER BY created_at DESC
-           LIMIT ?`
-        )
-        .all(eventId, before, limit);
+        .prepare(`SELECT * FROM photos WHERE ${where} ORDER BY created_at DESC LIMIT ?`)
+        .all(...params);
     },
 
     async getPhoto(eventId, photoId) {

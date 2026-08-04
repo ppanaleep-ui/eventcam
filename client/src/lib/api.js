@@ -21,15 +21,17 @@ export const api = {
     return fetch(`/api/events/${id}`, { headers }).then(json);
   },
 
-  listPhotos(id, { before, limit } = {}) {
+  listPhotos(id, { before, limit, token } = {}) {
     const q = new URLSearchParams();
     if (before) q.set('before', before);
     if (limit) q.set('limit', limit);
-    return fetch(`/api/events/${id}/photos?${q}`).then(json);
+    const headers = { 'x-guest-id': getGuestId() };
+    if (token) headers['x-admin-token'] = token;
+    return fetch(`/api/events/${id}/photos?${q}`, { headers }).then(json);
   },
 
   // Uploads full media (photo or video) + a thumbnail/poster produced on device.
-  uploadMedia(id, { full, thumb, guestName, filter, kind, width, height, duration, onProgress }) {
+  uploadMedia(id, { full, thumb, guestName, filter, kind, width, height, duration, hidden, onProgress }) {
     const fd = new FormData();
     const fullName = kind === 'video' ? 'clip' : 'photo';
     fd.append('full', full, `${fullName}`);
@@ -39,6 +41,7 @@ export const api = {
     if (width) fd.append('width', String(width));
     if (height) fd.append('height', String(height));
     if (duration) fd.append('duration', String(duration));
+    if (hidden) fd.append('hidden', '1');
 
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();

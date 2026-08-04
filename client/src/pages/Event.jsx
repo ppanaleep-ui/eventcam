@@ -63,7 +63,7 @@ export default function Event() {
         setEvent(ev);
         setCount(ev.photoCount);
         setStatus('ready');
-        const { items, total } = await api.listPhotos(id, { limit: 60 });
+        const { items, total } = await api.listPhotos(id, { limit: 60, token: adminToken });
         if (!alive) return;
         for (const p of items) seen.current.add(p.id);
         setPhotos(items);
@@ -93,7 +93,7 @@ export default function Event() {
       if (pollRef.current) return;
       pollRef.current = setInterval(async () => {
         try {
-          const { items } = await api.listPhotos(id, { limit: 60 });
+          const { items } = await api.listPhotos(id, { limit: 60, token: adminToken });
           for (const p of items) addPhoto(p);
         } catch {}
       }, 6000);

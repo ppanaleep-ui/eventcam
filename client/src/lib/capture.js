@@ -125,7 +125,21 @@ export function videoPoster(blob) {
   });
 }
 
-export function saveToDevice(blob, filename) {
+// Save a file to the guest's device. On phones (esp. iOS, where <a download>
+// is ignored) the native share sheet is the reliable way to save to Photos, so
+// try that first and fall back to a download link on desktop.
+export async function saveToDevice(blob, filename) {
+  const type = blob.type || 'application/octet-stream';
+  try {
+    const file = new File([blob], filename, { type });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file] });
+      return 'shared';
+    }
+  } catch (e) {
+    if (e && e.name === 'AbortError') return 'cancelled';
+    // otherwise fall through to download
+  }
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -134,4 +148,5 @@ export function saveToDevice(blob, filename) {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 4000);
+  return 'downloaded';
 }

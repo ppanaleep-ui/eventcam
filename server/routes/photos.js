@@ -7,6 +7,7 @@ import { config } from '../config.js';
 import { db } from '../db/index.js';
 import { storage } from '../storage/index.js';
 import { broadcast } from '../sse.js';
+import { ownerId, isHost } from '../eventAuth.js';
 
 const router = Router();
 
@@ -99,6 +100,7 @@ router.post('/:id/photos', uploadLimiter, (req, res) => {
     try {
       await storage().finalize(e.id, [full, ...(thumb ? [thumb] : [])]);
 
+      const hidden = req.body?.hidden === '1' || req.body?.hidden === 'true' ? 1 : 0;
       const photo = {
         id: req._photoId,
         event_id: e.id,
@@ -112,12 +114,15 @@ router.post('/:id/photos', uploadLimiter, (req, res) => {
         bytes: full.size,
         full_key: full.filename,
         thumb_key: thumb ? thumb.filename : null,
+        hidden,
         created_at: Date.now(),
       };
       await db().insertPhotoAndBump(photo);
 
       const dto = toDto(photo);
-      broadcast(e.id, 'photo', dto);
+      // Only broadcast public photos live. Hidden ones are added on the
+      // uploader's own device from this response; the host sees them on reload.
+      if (!hidden) broadcast(e.id, 'photo', dto);
       res.status(201).json(dto);
     } catch (e2) {
       await cleanup(req);
@@ -134,7 +139,10 @@ router.get('/:id/photos', async (req, res) => {
   const limit = Math.min(clampInt(req.query.limit) || config.pageSize, config.pageSize);
   const before = clampInt(req.query.before) || Number.MAX_SAFE_INTEGER;
 
-  const rows = await db().listPhotos(e.id, before, limit);
+  const rows = await db().listPhotos(e.id, before, limit, {
+    viewerId: ownerId(req),
+    isHost: isHost(req, e),
+  });
   const items = rows.map(toDto);
   const nextCursor = rows.length === limit ? Number(rows[rows.length - 1].created_at) : null;
   res.set('Cache-Control', 'no-cache');
@@ -154,6 +162,7 @@ export function toDto(p) {
     kind: p.kind || 'photo',
     guestName: p.guest_name,
     ownerId: p.owner_id || null,
+    hidden: !!p.hidden,
     filter: p.filter,
     width: p.width,
     height: p.height,
@@ -166,10 +175,6 @@ export function toDto(p) {
         ? s.urlFor(p.event_id, fullKey)
         : null,
   };
-}
-
-export function ownerId(req) {
-  return (req.get('x-guest-id') || req.body?.guestId || '').toString().slice(0, 40);
 }
 
 async function cleanup(req) {
