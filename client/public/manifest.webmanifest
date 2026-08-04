@@ -4,8 +4,8 @@
   "description": "Digital disposable camera for your event.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0a0a0a",
-  "theme_color": "#0a0a0a",
+  "background_color": "#f7f5f2",
+  "theme_color": "#f7f5f2",
   "icons": [
     {
       "src": "/favicon.svg",

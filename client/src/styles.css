@@ -1,13 +1,20 @@
 :root {
-  --bg: #0a0a0a;
-  --bg-2: #141414;
-  --bg-3: #1e1e1e;
-  --line: #2a2a2a;
-  --text: #f4f4f2;
-  --muted: #9a9a97;
-  --accent: #7cff6b;
-  --accent-ink: #06210a;
-  --danger: #ff5d5d;
+  /* Soft Romantic Garden palette */
+  --bg: #f7f5f2; /* ivory white — dominant ground */
+  --bg-2: #ffffff; /* pure white — cards / surfaces */
+  --bg-3: #f1ece6; /* warm off-white — inputs / chips */
+  --line: #e7dfd6; /* soft greige border */
+  --text: #3a3d31; /* deep olive ink — body text */
+  --muted: #8f8778; /* warm greige — secondary text */
+  --accent: #dfafbd; /* dusty rose — primary fill */
+  --accent-ink: #4a2f38; /* text on dusty rose */
+  --accent-strong: #b06a83; /* deeper rose — interactive text / active */
+  --sage: #aeb8a8; /* sage green — tertiary accent */
+  --olive: #5f684e; /* olive green — deep accent */
+  --blush: #f7dce5; /* blush pink — soft washes */
+  --danger: #b04a5c; /* deep rose — destructive */
+  /* dark surfaces used only inside the immersive camera / media viewer */
+  --ink: #23261f;
   --radius: 16px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -38,7 +45,7 @@ button {
 }
 
 a {
-  color: var(--accent);
+  color: var(--accent-strong);
 }
 
 .app {
@@ -81,7 +88,7 @@ a {
 .hero .serif {
   font-family: Georgia, 'Times New Roman', serif;
   font-style: italic;
-  color: var(--accent);
+  color: var(--accent-strong);
 }
 .hero p {
   color: var(--muted);
@@ -115,7 +122,7 @@ input[type='text'] {
   outline: none;
 }
 input[type='text']:focus {
-  border-color: var(--accent);
+  border-color: var(--accent-strong);
 }
 
 .btn {
@@ -161,9 +168,9 @@ input[type='text']:focus {
   display: inline-block;
   font-size: 11px;
   font-weight: 700;
-  color: var(--accent);
-  background: rgba(124, 255, 107, 0.12);
-  border: 1px solid rgba(124, 255, 107, 0.35);
+  color: var(--accent-strong);
+  background: var(--blush);
+  border: 1px solid rgba(176, 106, 131, 0.35);
   padding: 4px 10px;
   border-radius: 999px;
   margin-bottom: 12px;
@@ -206,7 +213,7 @@ input[type='text']:focus {
   gap: 10px;
   padding: calc(12px + var(--safe-top)) 16px 12px;
   border-bottom: 1px solid var(--line);
-  background: rgba(10, 10, 10, 0.85);
+  background: rgba(247, 245, 242, 0.85);
   backdrop-filter: blur(8px);
 }
 .topbar .title {
@@ -262,7 +269,7 @@ input[type='text']:focus {
   font-size: 20px;
 }
 .tabbar button.active {
-  color: var(--accent);
+  color: var(--accent-strong);
 }
 
 /* ---------- Camera ---------- */
@@ -483,7 +490,7 @@ input[type='text']:focus {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--accent-strong);
   margin-right: 6px;
   animation: blink 1.6s infinite;
 }
@@ -552,7 +559,7 @@ input[type='text']:focus {
   display: block;
 }
 .qr-card .no-dl {
-  color: #16a34a;
+  color: var(--olive);
   font-size: 13px;
   font-weight: 700;
   margin-top: 12px;
@@ -579,7 +586,7 @@ input[type='text']:focus {
   width: 34px;
   height: 34px;
   border: 3px solid var(--line);
-  border-top-color: var(--accent);
+  border-top-color: var(--accent-strong);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }

@@ -35,7 +35,7 @@ export default function Invite({ event, isHost, adminToken, onToast }) {
   return (
     <div className="invite">
       <h2 style={{ margin: '4px 0 4px' }}>
-        Invite <span style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', color: 'var(--accent)' }}>friends</span>
+        Invite <span style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', color: 'var(--accent-strong)' }}>friends</span>
       </h2>
       <p style={{ color: 'var(--muted)', marginTop: 0 }}>Guests scan to join. No download required 🔥</p>
 
