@@ -30,6 +30,12 @@ export default function Lightbox({
   const [pop, setPop] = useState(false); // heart pop animation on double-tap
   const touch = useRef(null);
   const lastTap = useRef(0);
+  const listRef = useRef(null);
+
+  // Keep the newest comment in view (older ones scroll up).
+  useEffect(() => {
+    if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
+  }, [comments]);
 
   useEffect(() => {
     if (!photo) return;
@@ -178,7 +184,7 @@ export default function Lightbox({
         <button className="lb-act" onClick={save} aria-label="บันทึก"><Icon name="download" size={23} /></button>
       </div>
 
-      <div className="lb-comments">
+      <div className="lb-comments" ref={listRef}>
         {loadingC && <div className="lb-cnote">กำลังโหลดคอมเมนต์…</div>}
         {!loadingC && comments.length === 0 && <div className="lb-cnote">ยังไม่มีคอมเมนต์ — เป็นคนแรกสิ!</div>}
         {comments.map((c) => (

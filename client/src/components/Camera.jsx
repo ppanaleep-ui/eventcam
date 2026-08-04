@@ -140,14 +140,12 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
     }
     chunksRef.current = [];
     rec.ondataavailable = (e) => e.data && e.data.size && chunksRef.current.push(e.data);
-    rec.onstop = async () => {
+    rec.onstop = () => {
       clearInterval(timerRef.current);
       const base = (rec.mimeType || 'video/webm').split(';')[0];
       const blob = new Blob(chunksRef.current, { type: base });
       const ext = base.includes('mp4') ? 'mp4' : base.includes('quicktime') ? 'mov' : 'webm';
-      const poster = await videoPoster(blob);
-      stopStream();
-      setShot({ kind: 'video', fullBlob: blob, thumbBlob: poster.thumbBlob, width: poster.width, height: poster.height, duration: poster.duration, ext, videoUrl: URL.createObjectURL(blob) });
+      showVideoShot(blob, ext); // shows review instantly; poster fills in async
       setRecording(false);
       setRecSecs(0);
     };
@@ -163,21 +161,73 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
     }
   }
 
+  // Show a video in review immediately; generate its poster in the background
+  // so importing/recording a clip feels instant (poster decode can be slow).
+  function showVideoShot(blob, ext) {
+    const videoUrl = URL.createObjectURL(blob);
+    stopStream();
+    setShot({ kind: 'video', fullBlob: blob, thumbBlob: null, width: 0, height: 0, duration: null, ext, videoUrl });
+    videoPoster(blob)
+      .then((poster) =>
+        setShot((prev) =>
+          prev && prev.videoUrl === videoUrl
+            ? { ...prev, thumbBlob: poster.thumbBlob, width: poster.width, height: poster.height, duration: poster.duration }
+            : prev
+        )
+      )
+      .catch(() => {});
+  }
+
+  function videoExt(type) {
+    const base = (type || '').split(';')[0];
+    return base.includes('webm') ? 'webm' : base.includes('quicktime') ? 'mov' : 'mp4';
+  }
+
+  // Upload many files at once (picked from the gallery) without a per-file review.
+  async function batchUpload(files) {
+    const orig = getFilm('original');
+    let ok = 0;
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      setProgress((i) / files.length);
+      onToast?.(`กำลังอัปโหลด ${i + 1}/${files.length}…`);
+      try {
+        if (f.type.startsWith('video/')) {
+          const dto = await api.uploadMedia(eventId, { full: f, guestName, kind: 'video', hidden: !visible });
+          onUploaded?.(dto);
+        } else {
+          const r = await produceFromImageFile(f, orig, { temp: 0, exposure: 0 });
+          const dto = await api.uploadMedia(eventId, { full: r.fullBlob, thumb: r.thumbBlob, guestName, kind: 'photo', filter: 'original', width: r.width, height: r.height, hidden: !visible });
+          onUploaded?.(dto);
+        }
+        ok++;
+      } catch {
+        /* skip the failed file */
+      }
+    }
+    setProgress(null);
+    onToast?.(`เพิ่ม ${ok}/${files.length} รายการลงอัลบั้มแล้ว ✨`);
+  }
+
   async function onPickFile(e) {
-    const file = e.target.files?.[0];
+    const files = [...(e.target.files || [])];
     e.target.value = '';
-    if (!file) return;
+    if (!files.length) return;
+
+    if (files.length > 1) {
+      await batchUpload(files);
+      return;
+    }
+
+    const file = files[0];
     try {
       if (file.type.startsWith('video/')) {
-        const poster = await videoPoster(file);
-        const base = file.type.split(';')[0] || 'video/mp4';
-        const ext = base.includes('webm') ? 'webm' : base.includes('quicktime') ? 'mov' : 'mp4';
-        setShot({ kind: 'video', fullBlob: file, thumbBlob: poster.thumbBlob, width: poster.width, height: poster.height, duration: poster.duration, ext, videoUrl: URL.createObjectURL(file) });
+        showVideoShot(file, videoExt(file.type));
       } else {
         const result = await produceFromImageFile(file, film, adjust);
+        stopStream();
         setShot({ kind: 'photo', ...result });
       }
-      stopStream();
     } catch {
       onToast?.('เปิดไฟล์นี้ไม่ได้');
     }
@@ -311,7 +361,7 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
           <button className="thumb-btn" onClick={() => fileRef.current?.click()} aria-label="อัปโหลดจากเครื่อง">
             <Icon name="imagePlus" size={24} />
           </button>
-          <input ref={fileRef} type="file" accept="image/*,video/*" onChange={onPickFile} hidden />
+          <input ref={fileRef} type="file" accept="image/*,video/*" multiple onChange={onPickFile} hidden />
           <button
             className={`shutter ${mode === 'video' ? 'video' : ''} ${recording ? 'recording' : ''}`}
             onClick={onShutter}
