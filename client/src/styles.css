@@ -1997,4 +1997,3 @@ input[type='text']:focus {
 }
 .album-fab:active { transform: scale(0.93); }
 .album-fab .fab-count { font-size: 14px; font-weight: 800; }
-.grid.selecting .tile { touch-action: none; }

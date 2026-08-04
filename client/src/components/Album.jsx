@@ -30,6 +30,8 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
   const albumRef = useRef(null);
   const drag = useRef({ active: false, intent: 'add', seen: new Set(), x: 0, y: 0 });
   const edgeTimer = useRef(null);
+  const startPt = useRef({ x: 0, y: 0 });
+  const touchBlock = useRef(null);
 
   const favs = favSet(eventId);
   const shown = photos.filter(
@@ -84,26 +86,28 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
     setSelected(new Set());
     endDrag();
   }
-  function pressStart(id) {
+  // Press-and-hold on a tile arms range drag-select (and enters select mode if
+  // needed). A normal swipe scrolls the album; only an intentional hold starts
+  // selecting, and while dragging we block page scroll.
+  function tilePointerDown(e, id, curSel) {
+    startPt.current = { x: e.clientX, y: e.clientY };
     clearTimeout(pressTimer.current);
     pressTimer.current = setTimeout(() => {
-      suppressClick.current = true;
-      setSelectMode(true);
-      toggleSel(id);
-      if (navigator.vibrate) navigator.vibrate(15);
-    }, 380);
+      pressTimer.current = null;
+      if (!selectMode) setSelectMode(true);
+      armDrag(id, curSel);
+      if (navigator.vibrate) navigator.vibrate(12);
+    }, 300);
   }
-  function pressCancel() {
-    clearTimeout(pressTimer.current);
-  }
-  function tilePointerDown(e, id, curSel) {
-    if (selectMode) {
-      drag.current = { active: true, intent: curSel ? 'remove' : 'add', seen: new Set([id]), x: e.clientX, y: e.clientY };
-      applySel(id);
-      suppressClick.current = true;
-      startEdgeScroll();
-    } else {
-      pressStart(id);
+  function armDrag(id, curSel) {
+    drag.current = { active: true, intent: curSel ? 'remove' : 'add', seen: new Set([id]), x: startPt.current.x, y: startPt.current.y };
+    applySel(id);
+    suppressClick.current = true;
+    startEdgeScroll();
+    const a = albumRef.current;
+    if (a) {
+      touchBlock.current = (ev) => ev.preventDefault();
+      a.addEventListener('touchmove', touchBlock.current, { passive: false });
     }
   }
   function selectUnderPoint(x, y) {
@@ -116,16 +120,26 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
     }
   }
   function gridPointerMove(e) {
-    pressCancel();
+    // A real move before the hold fires = a scroll gesture → cancel the arm.
+    if (pressTimer.current && (Math.abs(e.clientX - startPt.current.x) > 10 || Math.abs(e.clientY - startPt.current.y) > 10)) {
+      clearTimeout(pressTimer.current);
+      pressTimer.current = null;
+    }
     if (!drag.current.active) return;
     drag.current.x = e.clientX;
     drag.current.y = e.clientY;
     selectUnderPoint(e.clientX, e.clientY);
   }
   function endDrag() {
-    pressCancel();
+    clearTimeout(pressTimer.current);
+    pressTimer.current = null;
     drag.current.active = false;
     clearInterval(edgeTimer.current);
+    const a = albumRef.current;
+    if (a && touchBlock.current) {
+      a.removeEventListener('touchmove', touchBlock.current, { passive: false });
+      touchBlock.current = null;
+    }
   }
   function startEdgeScroll() {
     clearInterval(edgeTimer.current);
@@ -258,6 +272,7 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
           onPointerMove={gridPointerMove}
           onPointerUp={endDrag}
           onPointerCancel={endDrag}
+          onPointerLeave={endDrag}
         >
           {shown.map((p, i) => {
             const sel = selected.has(p.id);
@@ -268,8 +283,6 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
                 className={`tile ${sel ? 'sel' : ''}`}
                 onClick={() => onTileClick(i, p.id)}
                 onPointerDown={(e) => tilePointerDown(e, p.id, sel)}
-                onPointerUp={pressCancel}
-                onPointerLeave={pressCancel}
                 onContextMenu={(e) => e.preventDefault()}
               >
                 {p.kind === 'video' && !p.thumbUrl ? (
