@@ -46,6 +46,7 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
   const [timestamp, setTimestamp] = useState('auto'); // auto | on | off
   const [grid, setGrid] = useState(false); // rule-of-thirds overlay
   const [lowLight, setLowLight] = useState(false);
+  const [viewMode, setViewMode] = useState('full'); // full | framed (35mm viewfinder)
 
   const film = getFilm(filmId);
   const aspect = getAspect(aspectId);
@@ -326,7 +327,15 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
 
       {countdown !== null && <div className="countdown">{countdown}</div>}
       {recording && <div className="rec-badge"><span className="rec-dot" /> {String(recSecs).padStart(2, '0')}s / {MAX_VIDEO_SECS}s</div>}
-      {grid && camState === 'live' && <div className="cam-grid" aria-hidden="true" />}
+      {grid && camState === 'live' && viewMode !== 'framed' && <div className="cam-grid" aria-hidden="true" />}
+      {viewMode === 'framed' && camState === 'live' && mode === 'photo' && (
+        <div className="cam-frame-wrap" aria-hidden="true">
+          <div className="cam-frame" style={{ aspectRatio: String(aspect.ratio || 1.5) }}>
+            <span className="frame-label">{FORMAT_LABEL[aspectId] || '35mm'}</span>
+            {grid && <div className="frame-grid" />}
+          </div>
+        </div>
+      )}
       {lowLight && camState === 'live' && mode === 'photo' && !countdown && (
         <div className="lowlight-pill"><span /> Low Light</div>
       )}
@@ -371,6 +380,14 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
             <div className="mini-seg">
               {[['auto', 'อัตโนมัติ'], ['on', 'เปิด'], ['off', 'ปิด']].map(([v, l]) => (
                 <button key={v} className={timestamp === v ? 'on' : ''} onClick={() => setTimestamp(v)}>{l}</button>
+              ))}
+            </div>
+          </div>
+          <div className="set-row">
+            <span>▢ มุมมอง</span>
+            <div className="mini-seg">
+              {[['full', 'เต็มจอ'], ['framed', 'กรอบ 35mm']].map(([v, l]) => (
+                <button key={v} className={viewMode === v ? 'on' : ''} onClick={() => setViewMode(v)}>{l}</button>
               ))}
             </div>
           </div>
