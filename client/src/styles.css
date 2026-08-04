@@ -1695,3 +1695,86 @@ input[type='text']:focus {
   color: #fff;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
 }
+
+/* ---------- Album filters + multi-select ---------- */
+.album .seg-filter {
+  display: inline-flex;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+}
+.album .seg-filter button {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 15px;
+  border-radius: 999px;
+}
+.album .seg-filter button.on { background: #fff; color: #111; }
+.album .fav-filter { padding: 8px 11px; }
+.album .fav-filter svg { color: #ffd54a; }
+.album .fav-filter.on { background: var(--blush); border-color: var(--accent); }
+.album .fav-filter.on svg { color: var(--accent-strong); }
+
+.album-head.select { justify-content: space-between; }
+.album-head.select .album-count { color: #fff; font-weight: 700; }
+.album .link-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 6px 4px;
+}
+.album .link-btn:active { opacity: 0.6; }
+
+/* selection state on tiles */
+.tile .sel-ring {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: rgba(0, 0, 0, 0.28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  z-index: 3;
+}
+.tile .sel-ring.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.tile.sel img,
+.tile.sel .vid-holder {
+  transform: scale(0.86);
+  transition: transform 0.12s ease;
+}
+.tile.sel { outline: 3px solid var(--accent); outline-offset: -3px; }
+.grid.selecting .tile { -webkit-touch-callout: none; }
+
+.select-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(72px + var(--safe-bottom));
+  display: flex;
+  justify-content: center;
+  padding: 0 16px;
+  z-index: 40;
+  pointer-events: none;
+}
+.select-bar .btn {
+  max-width: 420px;
+  width: auto;
+  padding: 14px 26px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
+}
