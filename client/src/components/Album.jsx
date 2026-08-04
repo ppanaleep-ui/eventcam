@@ -83,16 +83,17 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
                   onLoad={(e) => e.currentTarget.classList.add('loaded')}
                 />
               )}
-              {p.kind === 'video' && <span className="vid-play"><Icon name="play" size={20} /></span>}
-              {favs.has(p.id) && <span className="fav-badge"><Icon name="star" size={12} filled /></span>}
-              {p.hidden && <span className="hidden-badge"><Icon name="eyeOff" size={13} /></span>}
-              {(p.likeCount > 0 || p.commentCount > 0) && (
-                <div className="tile-stats">
-                  {p.likeCount > 0 && <span><Icon name="heart" size={12} filled /> {p.likeCount}</span>}
-                  {p.commentCount > 0 && <span><Icon name="comment" size={12} /> {p.commentCount}</span>}
-                </div>
+              {p.kind === 'video' && (
+                <>
+                  <span className="vid-play"><Icon name="play" size={18} /></span>
+                  {p.duration ? <span className="vid-badge">{fmtDur(p.duration)}</span> : null}
+                </>
               )}
-              {p.guestName && <div className="who">{p.guestName}</div>}
+              {favs.has(p.id) && <span className="fav-badge"><Icon name="star" size={12} filled /></span>}
+              {p.hidden && <span className="hidden-badge"><Icon name="eyeOff" size={12} /></span>}
+              {p.likeCount > 0 && (
+                <span className="tile-like"><Icon name="heart" size={11} filled /> {p.likeCount}</span>
+              )}
             </button>
           ))}
         </div>
@@ -122,4 +123,9 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
       )}
     </div>
   );
+}
+
+function fmtDur(s) {
+  const m = Math.floor(s / 60);
+  return `${m}:${String(s % 60).padStart(2, '0')}`;
 }
