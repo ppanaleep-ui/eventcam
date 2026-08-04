@@ -145,6 +145,29 @@ input[type='text']:focus {
   color: var(--text);
   border: 1px solid var(--line);
 }
+.btn.danger {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+
+.host-panel {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  text-align: left;
+}
+.host-panel .host-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  background: rgba(124, 255, 107, 0.12);
+  border: 1px solid rgba(124, 255, 107, 0.35);
+  padding: 4px 10px;
+  border-radius: 999px;
+  margin-bottom: 12px;
+}
 
 .features {
   display: grid;

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api.js';
 import Lightbox from './Lightbox.jsx';
 
-export default function Album({ eventId, photos, setPhotos, count }) {
+export default function Album({ eventId, photos, setPhotos, count, isHost, adminToken, onDeleted, onToast }) {
   const [active, setActive] = useState(null); // index into photos for lightbox
   const [loadingMore, setLoadingMore] = useState(false);
   const [done, setDone] = useState(false);
@@ -93,6 +93,11 @@ export default function Album({ eventId, photos, setPhotos, count }) {
           index={active}
           onClose={() => setActive(null)}
           onIndex={setActive}
+          eventId={eventId}
+          isHost={isHost}
+          adminToken={adminToken}
+          onDeleted={onDeleted}
+          onToast={onToast}
         />
       )}
     </div>

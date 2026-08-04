@@ -37,9 +37,13 @@ festival"; see **[SCALING.md](./SCALING.md)**.
 - **In-browser camera** — front/back switch, live filter preview.
 - **Retro film filters** — Classic, '90s (with date stamp), Noir, Sunwash light
   leak, Polaroid frame — grain, vignette and warmth included.
-- **Live shared album** — new photos appear for everyone in real time.
+- **Live shared album** — new photos appear for everyone in real time (with an
+  automatic polling fallback if the live connection can't hold).
 - **Save & share** — download or native-share any photo.
 - **Guest names** — remembered per device, no accounts or logins.
+- **Host controls** — whoever creates the event can delete any photo (it
+  disappears for everyone live) and download the whole album as a ZIP. Host
+  access is an opaque token kept on the creator's device — no admin login.
 
 ---
 
@@ -135,13 +139,24 @@ Reports throughput, success/failure counts, and p50/p95/p99 latency.
 
 ---
 
+## Pluggable backends
+
+Backends are **auto-selected from the environment** — no code changes:
+
+| Env var | Unset (default) | Set |
+| --- | --- | --- |
+| `DATABASE_URL` | SQLite (WAL) | Postgres |
+| `S3_BUCKET` | local filesystem | S3 / R2 / MinIO object storage |
+| `REDIS_URL` | in-process live updates | Redis pub/sub across instances |
+
 ## Deploying
 
-- **Single box (simplest):** `npm run build && npm start` behind a reverse proxy
-  (Caddy/Nginx) that terminates TLS. Persist `DATA_DIR`.
-- **Real scale:** multiple stateless app instances behind a load balancer,
-  Postgres, S3-compatible object storage + CDN, and Redis-backed SSE. Step by
-  step in **[SCALING.md](./SCALING.md)**.
+- **Single box:** `npm run build && npm start` behind a TLS reverse proxy.
+- **Full stack (Postgres + Redis + S3/MinIO) with one command:**
+  `docker compose up --build` — the same horizontally-scalable topology,
+  runnable locally.
+- **Managed cloud & multi-instance:** step by step in **[DEPLOY.md](./DEPLOY.md)**,
+  with the reasoning in **[SCALING.md](./SCALING.md)**.
 
 ## License
 

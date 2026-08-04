@@ -1,7 +1,33 @@
 import { useEffect } from 'react';
+import { api } from '../lib/api.js';
 
-export default function Lightbox({ photos, index, onClose, onIndex }) {
+export default function Lightbox({
+  photos,
+  index,
+  onClose,
+  onIndex,
+  eventId,
+  isHost,
+  adminToken,
+  onDeleted,
+  onToast,
+}) {
   const photo = photos[index];
+
+  async function remove() {
+    if (!photo) return;
+    if (!window.confirm('Remove this photo for everyone?')) return;
+    try {
+      await api.deletePhoto(eventId, photo.id, adminToken);
+      onDeleted?.(photo.id);
+      onToast?.('Photo removed');
+      // Close if that was the last one, otherwise clamp the index.
+      if (photos.length <= 1) onClose();
+      else onIndex(Math.min(index, photos.length - 2));
+    } catch (err) {
+      onToast?.(err.message || 'Could not remove');
+    }
+  }
 
   useEffect(() => {
     function onKey(e) {
@@ -64,6 +90,11 @@ export default function Lightbox({ photos, index, onClose, onIndex }) {
         <img src={photo.url} alt={photo.guestName ? `Photo by ${photo.guestName}` : 'Event photo'} />
       </div>
       <div className="lb-foot" onClick={(e) => e.stopPropagation()}>
+        {isHost && (
+          <button className="btn danger" onClick={remove} aria-label="Delete photo">
+            🗑
+          </button>
+        )}
         <button className="btn secondary" onClick={download}>
           ⬇ Save
         </button>

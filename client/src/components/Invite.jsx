@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api } from '../lib/api.js';
 
-export default function Invite({ event, onToast }) {
+export default function Invite({ event, isHost, adminToken, onToast }) {
   const [copied, setCopied] = useState(false);
   const url = event.joinUrl || `${window.location.origin}/e/${event.id}`;
 
@@ -59,6 +59,26 @@ export default function Invite({ event, onToast }) {
       <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 20 }}>
         Anyone with this link can view the album and add photos. Keep it to your guests.
       </p>
+
+      {isHost && (
+        <div className="host-panel">
+          <span className="host-tag">★ Host controls</span>
+          <p style={{ color: 'var(--muted)', fontSize: 14, marginTop: 0 }}>
+            You created this event on this device. Download every photo as a ZIP, or remove any
+            photo from the album (tap a photo, then 🗑).
+          </p>
+          <a
+            className="btn"
+            href={api.downloadAllUrl(event.id, adminToken)}
+            style={{ display: 'block', textDecoration: 'none', textAlign: 'center' }}
+          >
+            ⬇ Download all photos (.zip)
+          </a>
+          <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 10 }}>
+            Host access lives only in this browser — keep using this device to manage the event.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

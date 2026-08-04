@@ -59,4 +59,17 @@ export const api = {
   qrUrl(id) {
     return `/api/events/${id}/qr`;
   },
+
+  // ---- Host-only ----
+  deletePhoto(id, photoId, token) {
+    return fetch(`/api/events/${id}/photos/${photoId}`, {
+      method: 'DELETE',
+      headers: { 'x-admin-token': token },
+    }).then(json);
+  },
+
+  // A plain URL so the browser handles the (potentially large) zip download.
+  downloadAllUrl(id, token) {
+    return `/api/events/${id}/download?token=${encodeURIComponent(token)}`;
+  },
 };

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { getGuestName } from '../lib/guest.js';
+import { getAdminToken } from '../lib/admin.js';
 import Camera from '../components/Camera.jsx';
 import Album from '../components/Album.jsx';
 import Invite from '../components/Invite.jsx';
@@ -20,6 +21,9 @@ export default function Event() {
   const [guest, setGuest] = useState(getGuestName());
   const [toast, setToast] = useState('');
   const seen = useRef(new Set());
+  const pollRef = useRef(null);
+  const adminToken = getAdminToken(id);
+  const isHost = !!adminToken;
 
   const showToast = useCallback((msg) => {
     setToast(msg);
@@ -34,6 +38,16 @@ export default function Event() {
     setPhotos((prev) => [p, ...prev]);
     setCount((c) => c + 1);
     return true;
+  }, []);
+
+  // Remove a photo everywhere (host deleted it).
+  const removePhoto = useCallback((photoId) => {
+    seen.current.delete(photoId);
+    setPhotos((prev) => {
+      if (!prev.some((p) => p.id === photoId)) return prev;
+      setCount((c) => Math.max(0, c - 1));
+      return prev.filter((p) => p.id !== photoId);
+    });
   }, []);
 
   // Load event + first page of photos.
@@ -60,19 +74,53 @@ export default function Event() {
     };
   }, [id]);
 
-  // Live updates via Server-Sent Events (auto-reconnects on drop).
+  // Live updates via Server-Sent Events (auto-reconnects on drop). If the SSE
+  // connection can't hold — strict proxies, flaky venue wifi, huge crowds — we
+  // fall back to polling so guests still see new photos, just less instantly.
   useEffect(() => {
     if (status !== 'ready') return;
+
+    const stopPolling = () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+    const startPolling = () => {
+      if (pollRef.current) return;
+      pollRef.current = setInterval(async () => {
+        try {
+          const { items } = await api.listPhotos(id, { limit: 60 });
+          for (const p of items) addPhoto(p);
+        } catch {}
+      }, 6000);
+    };
+
     const es = new EventSource(`/api/events/${id}/stream`);
-    es.addEventListener('hello', () => setLive(true));
+    es.addEventListener('hello', () => {
+      setLive(true);
+      stopPolling(); // SSE is healthy; no need to poll
+    });
     es.addEventListener('photo', (e) => {
       try {
         addPhoto(JSON.parse(e.data));
       } catch {}
     });
-    es.onerror = () => setLive(false);
-    return () => es.close();
-  }, [id, status, addPhoto]);
+    es.addEventListener('delete', (e) => {
+      try {
+        removePhoto(JSON.parse(e.data).id);
+      } catch {}
+    });
+    es.onerror = () => {
+      setLive(false);
+      startPolling();
+    };
+
+    return () => {
+      es.close();
+      stopPolling();
+    };
+  }, [id, status, addPhoto, removePhoto]);
 
   if (status === 'loading') {
     return (
@@ -114,8 +162,21 @@ export default function Event() {
           {tab === 'camera' && (
             <Camera eventId={id} guestName={guest} onUploaded={addPhoto} onToast={showToast} />
           )}
-          {tab === 'album' && <Album eventId={id} photos={photos} setPhotos={setPhotos} count={count} />}
-          {tab === 'invite' && <Invite event={event} onToast={showToast} />}
+          {tab === 'album' && (
+            <Album
+              eventId={id}
+              photos={photos}
+              setPhotos={setPhotos}
+              count={count}
+              isHost={isHost}
+              adminToken={adminToken}
+              onDeleted={removePhoto}
+              onToast={showToast}
+            />
+          )}
+          {tab === 'invite' && (
+            <Invite event={event} isHost={isHost} adminToken={adminToken} onToast={showToast} />
+          )}
         </div>
 
         <nav className="tabbar">

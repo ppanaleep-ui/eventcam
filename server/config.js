@@ -14,8 +14,7 @@ export const config = {
   env: process.env.NODE_ENV || 'development',
   port: num(process.env.PORT, 3000),
 
-  // Where SQLite db + uploaded files live. Point this at a shared/persistent
-  // volume in production, or swap storage.js for S3-compatible object storage.
+  // Where SQLite db + uploaded files live (when using the local drivers).
   dataDir: process.env.DATA_DIR || path.join(ROOT, 'data'),
 
   // Public base URL used to build QR / invite links. In production set this to
@@ -32,14 +31,43 @@ export const config = {
   pageSize: num(process.env.PAGE_SIZE, 60),
 
   // Per-IP rate limits. Guests at a real event each have their own IP, so
-  // these are per-person. Set the max to 0 to disable a limiter entirely
-  // (useful for single-IP load testing).
-  uploadRateMax: num(process.env.UPLOAD_RATE_MAX, 40), // per window, per IP
+  // these are per-person. Set the max to 0 to disable a limiter (load testing).
+  uploadRateMax: num(process.env.UPLOAD_RATE_MAX, 40),
   uploadRateWindowMs: num(process.env.UPLOAD_RATE_WINDOW_MS, 60 * 1000),
-  createRateMax: num(process.env.CREATE_RATE_MAX, 60), // per hour, per IP
+  createRateMax: num(process.env.CREATE_RATE_MAX, 60),
+
+  // ---- Pluggable backends (auto-selected from env) --------------------------
+
+  // Database: Postgres when DATABASE_URL is set, else local SQLite.
+  databaseUrl: process.env.DATABASE_URL || '',
+
+  // Object storage: S3-compatible when S3_BUCKET is set, else local filesystem.
+  s3: {
+    bucket: process.env.S3_BUCKET || '',
+    region: process.env.S3_REGION || 'us-east-1',
+    endpoint: process.env.S3_ENDPOINT || '', // e.g. https://<account>.r2.cloudflarestorage.com or MinIO
+    accessKeyId: process.env.S3_ACCESS_KEY_ID || '',
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || '',
+    forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true', // MinIO needs this
+    // Where the browser fetches photos from (a CDN in front of the bucket, or
+    // the bucket's own public URL). Falls back to the endpoint/bucket.
+    publicBase: process.env.S3_PUBLIC_BASE || '',
+  },
+
+  // Live updates: fan out via Redis pub/sub across instances when set.
+  redisUrl: process.env.REDIS_URL || '',
 
   isProd() {
     return this.env === 'production';
+  },
+  usePostgres() {
+    return !!this.databaseUrl;
+  },
+  useS3() {
+    return !!this.s3.bucket;
+  },
+  useRedis() {
+    return !!this.redisUrl;
   },
 };
 
