@@ -1,0 +1,28 @@
+# One-click-ish deploy for Render (https://render.com).
+#
+# This "Blueprint" tells Render to build EventCam from the Dockerfile and run it
+# as a single web service with a persistent disk (so photos + database survive
+# restarts). Render gives you free HTTPS automatically, which the in-browser
+# camera requires.
+#
+# How to use it: see GUIDE_TH.md — step by step, no dev knowledge needed.
+#
+# QR / invite links auto-detect your Render URL, so there's nothing to configure
+# after deploy. Bump `plan` up for a big event (see the guide for sizes).
+
+services:
+  - type: web
+    name: eventcam
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: standard # ~2 GB RAM / 1 CPU. Use `pro` (4 GB) for a 2,000-guest event.
+    region: singapore # closest region to Thailand; change if you prefer
+    healthCheckPath: /healthz
+    autoDeploy: true # redeploys automatically when you push to the branch
+    disk:
+      name: eventcam-data
+      mountPath: /app/data # SQLite database + uploaded photos live here
+      sizeGB: 10 # ~30,000 photos; raise for larger events
+    envVars:
+      - key: NODE_ENV
+        value: production

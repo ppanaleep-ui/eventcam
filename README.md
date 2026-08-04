@@ -7,6 +7,9 @@ shot lands instantly in one collaborative album that updates live for everyone.
 
 Built to stay flat and stable with **2,000+ guests using it at the same time**.
 
+> 🇹🇭 **ไม่มีพื้นฐาน dev?** อ่านคู่มือเอาขึ้นใช้งานจริงแบบจับมือทำที่
+> **[GUIDE_TH.md](./GUIDE_TH.md)** (ภาษาไทย)
+
 ---
 
 ## Why it scales to a full wedding / festival crowd
