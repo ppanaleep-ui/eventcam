@@ -29,7 +29,7 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
 
   const [mode, setMode] = useState('photo');
   const [facing, setFacing] = useState('environment');
-  const [filmId, setFilmId] = useState('classic');
+  const [filmId, setFilmId] = useState('dclassic');
   const [aspectId, setAspectId] = useState('9:16');
   const [temp, setTemp] = useState(0);
   const [exposure, setExposure] = useState(0);
@@ -332,7 +332,7 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
           </label>
           <label className="adjust">
             <span>🌡 อุ่น/เย็น {temp > 0 ? `+${temp}` : temp}</span>
-            <input type="range" min="-100" max="100" step="5" value={temp} onChange={(e) => setTemp(Number(e.target.value))} />
+            <input className="temp-slider" type="range" min="-100" max="100" step="5" value={temp} onChange={(e) => setTemp(Number(e.target.value))} />
           </label>
         </div>
       )}

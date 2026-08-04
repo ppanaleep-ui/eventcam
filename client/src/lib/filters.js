@@ -16,6 +16,12 @@ export const FILMS = [
     grade: { contrast: 1, lift: 0, gamma: 1, sat: 1, gain: [1, 1, 1], shadow: [0, 0, 0], highlight: [0, 0, 0] },
     grain: 0, halation: 0, vignette: 0 },
 
+  // Matches Dazz "D Classic": cool green-grey cast, desaturated, moody/dark,
+  // heavy fine grain, and an orange LED date stamp.
+  { id: 'dclassic', name: 'D Classic', css: 'saturate(0.72) contrast(1.06) brightness(0.97) hue-rotate(-6deg) sepia(0.05)',
+    grade: { contrast: 1.09, lift: 0.04, gamma: 1.06, sat: 0.72, gain: [0.92, 1.03, 1.0], shadow: [-7, 5, 1], highlight: [0, 2, 4] },
+    grain: 0.17, halation: 0.12, vignette: 0.34, dateStamp: true },
+
   { id: 'classic', name: 'Classic', css: 'contrast(1.08) saturate(1.06) sepia(0.06)',
     grade: { contrast: 1.12, lift: 0.03, gamma: 1.0, sat: 1.08, gain: [1.04, 1.0, 0.96], shadow: [4, 2, -6], highlight: [8, 4, -4] },
     grain: 0.07, halation: 0.28, vignette: 0.28 },

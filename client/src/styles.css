@@ -1778,3 +1778,9 @@ input[type='text']:focus {
   box-shadow: 0 8px 26px rgba(0, 0, 0, 0.4);
   pointer-events: auto;
 }
+
+/* Dazz-style temperature slider (cool blue → warm orange) */
+.adjust input.temp-slider {
+  background: linear-gradient(90deg, #6ea8ff 0%, #cfd6df 50%, #ff9e5e 100%);
+}
+.adjust-pop .adjust input.temp-slider { background: linear-gradient(90deg, #6ea8ff 0%, #cfd6df 50%, #ff9e5e 100%); }
