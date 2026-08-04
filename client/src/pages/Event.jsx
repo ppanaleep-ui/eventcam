@@ -200,8 +200,10 @@ export default function Event() {
                 count={count}
                 isHost={isHost}
                 adminToken={adminToken}
+                guestName={guest}
                 onDeleted={removePhoto}
                 onUpdate={updatePhoto}
+                onUploaded={addPhoto}
                 onToast={showToast}
               />
             </div>
