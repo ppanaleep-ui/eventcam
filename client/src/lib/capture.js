@@ -39,7 +39,17 @@ function fit(w, h, max) {
  * cropped to `ratio` and graded with `film` + adjustments (temp/exposure).
  */
 export async function produceImages(source, sw, sh, film, ratio, opts) {
-  const { sx, sy, cw, ch } = cropRect(sw, sh, ratio);
+  let { sx, sy, cw, ch } = cropRect(sw, sh, ratio);
+  // Digital zoom: keep the centre, shrink the sampled region by 1/zoom.
+  const zoom = Math.max(1, opts?.zoom || 1);
+  if (zoom > 1) {
+    const zw = Math.round(cw / zoom);
+    const zh = Math.round(ch / zoom);
+    sx += Math.round((cw - zw) / 2);
+    sy += Math.round((ch - zh) / 2);
+    cw = zw;
+    ch = zh;
+  }
   const outSize = fit(cw, ch, MAX_FULL);
 
   const cropped = document.createElement('canvas');

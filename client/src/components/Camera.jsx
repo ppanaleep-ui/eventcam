@@ -47,6 +47,9 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
   const [lowLight, setLowLight] = useState(false);
   const [viewMode, setViewMode] = useState('framed'); // framed (viewfinder) | full
   const [fs, setFs] = useState(false); // immersive full-screen (no browser chrome)
+  const [zoom, setZoom] = useState(1);
+  const [zoomStops, setZoomStops] = useState([1, 2]);
+  const hwZoomRef = useRef(false); // camera exposes an optical/HW zoom track
 
   const film = getFilm(filmId);
   const aspect = getAspect(aspectId);
@@ -56,6 +59,22 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
     const i = ASPECTS.findIndex((a) => a.id === id);
     return ASPECTS[(i + 1) % ASPECTS.length].id;
   });
+  const cycleZoom = () => setZoom((z) => {
+    const i = zoomStops.indexOf(z);
+    return zoomStops[(i + 1) % zoomStops.length] ?? 1;
+  });
+  // Digital zoom (used only when the device has no HW zoom track).
+  const digitalScale = !hwZoomRef.current && zoom > 1 ? zoom : 1;
+  const camTransform = `${facing === 'user' ? 'scaleX(-1) ' : ''}${digitalScale > 1 ? `scale(${digitalScale})` : ''}`.trim() || undefined;
+
+  // Drive the real lens when we have a HW zoom track.
+  useEffect(() => {
+    const track = streamRef.current?.getVideoTracks?.()[0];
+    if (!hwZoomRef.current || !track) return;
+    const caps = track.getCapabilities?.() || {};
+    const z = Math.min(caps.zoom?.max ?? zoom, Math.max(caps.zoom?.min ?? 1, zoom));
+    track.applyConstraints({ advanced: [{ zoom: z }] }).catch(() => {});
+  }, [zoom, camState]);
 
   // Immersive full-screen — hides the browser's top/bottom chrome so it feels
   // like a native app. Works in Android Chrome / desktop; iOS Safari blocks the
@@ -108,6 +127,27 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
           videoRef.current.srcObject = stream;
           await videoRef.current.play().catch(() => {});
         }
+        // Detect hardware zoom so the zoom pill can drive the real lens; else we
+        // fall back to a centre-crop digital zoom (applied on capture).
+        try {
+          const track = stream.getVideoTracks()[0];
+          const caps = track?.getCapabilities?.() || {};
+          if (caps.zoom && caps.zoom.max > caps.zoom.min) {
+            hwZoomRef.current = true;
+            const stops = [];
+            if (caps.zoom.min <= 0.6) stops.push(0.5);
+            stops.push(1);
+            if (caps.zoom.max >= 2) stops.push(2);
+            setZoomStops(stops.length > 1 ? stops : [1, 2]);
+          } else {
+            hwZoomRef.current = false;
+            setZoomStops([1, 2]);
+          }
+        } catch {
+          hwZoomRef.current = false;
+          setZoomStops([1, 2]);
+        }
+        setZoom(1);
         setCamState('live');
       } catch (err) {
         if (!cancelled) setCamState(err?.name === 'NotAllowedError' ? 'denied' : 'error');
@@ -161,7 +201,8 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
   async function doCapture() {
     const video = videoRef.current;
     if (!video || !video.videoWidth) return;
-    const result = await produceImages(video, video.videoWidth, video.videoHeight, film, aspect.ratio, adjust);
+    const captureAdjust = { ...adjust, zoom: hwZoomRef.current ? 1 : zoom };
+    const result = await produceImages(video, video.videoWidth, video.videoHeight, film, aspect.ratio, captureAdjust);
     stopStream();
     setShot({ kind: 'photo', ...result });
   }
@@ -354,15 +395,20 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
   }
 
   // ---- Live (Instagram-style full-bleed camera) ----
+  const showZoom = camState === 'live' && zoomStops.length > 1 && !countdown;
   return (
-    <div className="camera ig">
-      <video ref={videoRef} className={`cam-feed ${facing === 'user' ? 'mirror' : ''}`} style={{ filter: liveFilter }} playsInline muted />
+    <div className={`camera ig ${recording ? 'is-recording' : ''}`}>
+      <video ref={videoRef} className="cam-feed" style={{ filter: liveFilter, transform: camTransform }} playsInline muted />
       <div className="cam-scrim top" />
       <div className="cam-scrim bottom" />
 
       {countdown !== null && <div className="countdown">{countdown}</div>}
-      {recording && <div className="rec-badge"><span className="rec-dot" /> {String(recSecs).padStart(2, '0')}s / {MAX_VIDEO_SECS}s</div>}
-      {grid && camState === 'live' && viewMode !== 'framed' && <div className="cam-grid" aria-hidden="true" />}
+      {recording && (
+        <div className="rec-badge">
+          <span className="rec-dot" /> REC {String(Math.floor(recSecs / 60)).padStart(2, '0')}:{String(recSecs % 60).padStart(2, '0')}
+        </div>
+      )}
+      {grid && camState === 'live' && viewMode !== 'framed' && !recording && <div className="cam-grid" aria-hidden="true" />}
       {viewMode === 'framed' && camState === 'live' && mode === 'photo' && (
         <div className="cam-frame-wrap" aria-hidden="true">
           <div className="cam-frame" style={{ aspectRatio: String(aspect.ratio || 2 / 3) }}>
@@ -371,11 +417,18 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
           </div>
         </div>
       )}
-      {lowLight && camState === 'live' && mode === 'photo' && !countdown && (
+      {lowLight && camState === 'live' && mode === 'photo' && !countdown && !recording && (
         <div className="lowlight-pill"><span /> Low Light</div>
       )}
 
-      {/* Top floating bar */}
+      {showZoom && (
+        <button className="cam-zoom" onClick={cycleZoom} aria-label="ซูม">
+          {zoom === 0.5 ? '.5' : zoom}<span>×</span>
+        </button>
+      )}
+
+      {/* Top floating bar (hidden while recording for a clean frame) */}
+      {!recording && (
       <div className="cam-top">
         <button className="cam-pill" onClick={cycleAspect} aria-label="อัตราส่วน">
           {aspect.label}
@@ -397,6 +450,7 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
           )}
         </div>
       </div>
+      )}
 
       {/* Adjust popover */}
       {showAdjust && mode === 'photo' && (
@@ -453,37 +507,61 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
         </div>
       )}
 
-      {/* Bottom floating cluster */}
-      <div className="cam-bottom">
-        {camState === 'live' && mode === 'photo' && (
-          <div className="film-strip">
-            {FILMS.map((f) => (
-              <button key={f.id} className={`film-chip ${f.id === filmId ? 'active' : ''}`} onClick={() => setFilmId(f.id)}>
-                {f.name}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <div className="shutter-row">
-          <button className="thumb-btn" onClick={() => fileRef.current?.click()} aria-label="อัปโหลดจากเครื่อง">
-            <Icon name="imagePlus" size={24} />
+      {/* Bottom cluster — clean stop button while recording, full controls otherwise */}
+      {recording ? (
+        <div className="cam-bottom recording">
+          <button className="rec-stop" onClick={stopRecording} aria-label="หยุดอัด">
+            <RecRing progress={Math.min(1, recSecs / MAX_VIDEO_SECS)} />
+            <span className="rec-stop-sq" />
           </button>
-          <input ref={fileRef} type="file" accept="image/*,video/*" multiple onChange={onPickFile} hidden />
-          <button
-            className={`shutter ${mode === 'video' ? 'video' : ''} ${recording ? 'recording' : ''}`}
-            onClick={onShutter}
-            disabled={camState !== 'live' || countdown !== null}
-            aria-label={mode === 'video' ? (recording ? 'หยุดอัด' : 'อัดวิดีโอ') : 'ถ่ายรูป'}
-          />
-          <button className="flip-btn" onClick={() => setFacing((f) => (f === 'user' ? 'environment' : 'user'))} disabled={recording} aria-label="สลับกล้อง"><Icon name="refresh" size={24} /></button>
         </div>
+      ) : (
+        <div className="cam-bottom">
+          {camState === 'live' && mode === 'photo' && (
+            <div className="film-strip">
+              {FILMS.map((f) => (
+                <button key={f.id} className={`film-chip ${f.id === filmId ? 'active' : ''}`} onClick={() => setFilmId(f.id)}>
+                  {f.name}
+                </button>
+              ))}
+            </div>
+          )}
 
-        <div className="mode-switch">
-          <button className={mode === 'photo' ? 'active' : ''} onClick={() => !recording && setMode('photo')}>รูป</button>
-          {videoSupported && <button className={mode === 'video' ? 'active' : ''} onClick={() => setMode('video')}>วิดีโอ</button>}
+          <div className="shutter-row">
+            <button className="thumb-btn" onClick={() => fileRef.current?.click()} aria-label="อัปโหลดจากเครื่อง">
+              <Icon name="imagePlus" size={24} />
+            </button>
+            <input ref={fileRef} type="file" accept="image/*,video/*" multiple onChange={onPickFile} hidden />
+            <button
+              className={`shutter ${mode === 'video' ? 'video' : ''}`}
+              onClick={onShutter}
+              disabled={camState !== 'live' || countdown !== null}
+              aria-label={mode === 'video' ? 'อัดวิดีโอ' : 'ถ่ายรูป'}
+            />
+            <button className="flip-btn" onClick={() => setFacing((f) => (f === 'user' ? 'environment' : 'user'))} aria-label="สลับกล้อง"><Icon name="refresh" size={24} /></button>
+          </div>
+
+          <div className="mode-switch">
+            <button className={mode === 'photo' ? 'active' : ''} onClick={() => setMode('photo')}>รูป</button>
+            {videoSupported && <button className={mode === 'video' ? 'active' : ''} onClick={() => setMode('video')}>วิดีโอ</button>}
+          </div>
         </div>
-      </div>
+      )}
     </div>
+  );
+}
+
+// Green circular progress ring around the video stop button (Dazz-style).
+function RecRing({ progress }) {
+  const r = 34;
+  const c = 2 * Math.PI * r;
+  return (
+    <svg className="rec-ring" width="78" height="78" viewBox="0 0 78 78" aria-hidden="true">
+      <circle cx="39" cy="39" r={r} fill="none" stroke="rgba(255,255,255,0.22)" strokeWidth="3.5" />
+      <circle
+        cx="39" cy="39" r={r} fill="none" stroke="#c6f542" strokeWidth="3.5" strokeLinecap="round"
+        strokeDasharray={c} strokeDashoffset={c * (1 - progress)} transform="rotate(-90 39 39)"
+      />
+    </svg>
   );
 }
