@@ -8,10 +8,11 @@ const THUMB_Q = 0.72;
 // Frame options the guest can pick. `ratio` is width / height; null = keep the
 // camera's native frame (no crop).
 export const ASPECTS = [
+  { id: '2:3', label: '35mm', ratio: 2 / 3 },
+  { id: '4:5', label: '645', ratio: 4 / 5 },
+  { id: '1:1', label: '6×6', ratio: 1 },
+  { id: '9:16', label: 'CINE', ratio: 9 / 16 },
   { id: 'full', label: 'เต็ม', ratio: null },
-  { id: '1:1', label: '1:1', ratio: 1 },
-  { id: '4:5', label: '4:5', ratio: 4 / 5 },
-  { id: '9:16', label: '9:16', ratio: 9 / 16 },
 ];
 
 export function getAspect(id) {

@@ -5,7 +5,6 @@ import { api } from '../lib/api.js';
 import Icon from './Icon.jsx';
 
 const MAX_VIDEO_SECS = 20;
-const FORMAT_LABEL = { full: '35mm', '1:1': '6×6', '4:5': '645', '9:16': 'CINE' };
 
 function pickVideoMime() {
   const c = ['video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
@@ -30,7 +29,7 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
   const [mode, setMode] = useState('photo');
   const [facing, setFacing] = useState('environment');
   const [filmId, setFilmId] = useState('dclassic');
-  const [aspectId, setAspectId] = useState('9:16');
+  const [aspectId, setAspectId] = useState('2:3'); // default: 35mm portrait
   const [temp, setTemp] = useState(0);
   const [exposure, setExposure] = useState(0);
   const [selfTimer, setSelfTimer] = useState(0); // 0 | 3 | 10
@@ -44,9 +43,10 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
   const [visible, setVisible] = useState(true); // show this upload to everyone?
   const [leak, setLeak] = useState(0); // random light-leak amount 0..100
   const [timestamp, setTimestamp] = useState('auto'); // auto | on | off
-  const [grid, setGrid] = useState(false); // rule-of-thirds overlay
+  const [grid, setGrid] = useState(false); // extra grid in full-screen view
   const [lowLight, setLowLight] = useState(false);
-  const [viewMode, setViewMode] = useState('full'); // full | framed (35mm viewfinder)
+  const [viewMode, setViewMode] = useState('framed'); // framed (viewfinder) | full
+  const [fs, setFs] = useState(false); // immersive full-screen (no browser chrome)
 
   const film = getFilm(filmId);
   const aspect = getAspect(aspectId);
@@ -56,6 +56,41 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
     const i = ASPECTS.findIndex((a) => a.id === id);
     return ASPECTS[(i + 1) % ASPECTS.length].id;
   });
+
+  // Immersive full-screen — hides the browser's top/bottom chrome so it feels
+  // like a native app. Works in Android Chrome / desktop; iOS Safari blocks the
+  // Fullscreen API on non-video elements, so there we nudge "Add to Home Screen".
+  async function toggleFullscreen() {
+    try {
+      if (!document.fullscreenElement) {
+        const el = document.documentElement;
+        if (el.requestFullscreen) await el.requestFullscreen({ navigationUI: 'hide' });
+        else throw new Error('unsupported');
+      } else if (document.exitFullscreen) {
+        await document.exitFullscreen();
+      }
+    } catch {
+      onToast?.('เต็มจอไม่ได้บนเบราว์เซอร์นี้ — แตะ "แชร์ → เพิ่มลงหน้าโฮม" เพื่อใช้แบบเต็มจอ');
+    }
+  }
+
+  function resetAdjust() {
+    setExposure(0);
+    setTemp(0);
+    setLeak(0);
+    setTimestamp('auto');
+    setGrid(false);
+    setSelfTimer(0);
+    setViewMode('framed');
+    setAspectId('2:3');
+    onToast?.('รีเซ็ตเป็นค่าเริ่มต้นแล้ว');
+  }
+
+  useEffect(() => {
+    const onFs = () => setFs(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onFs);
+    return () => document.removeEventListener('fullscreenchange', onFs);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -330,9 +365,9 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
       {grid && camState === 'live' && viewMode !== 'framed' && <div className="cam-grid" aria-hidden="true" />}
       {viewMode === 'framed' && camState === 'live' && mode === 'photo' && (
         <div className="cam-frame-wrap" aria-hidden="true">
-          <div className="cam-frame" style={{ aspectRatio: String(aspect.ratio || 1.5) }}>
-            <span className="frame-label">{FORMAT_LABEL[aspectId] || '35mm'}</span>
-            {grid && <div className="frame-grid" />}
+          <div className="cam-frame" style={{ aspectRatio: String(aspect.ratio || 2 / 3) }}>
+            <span className="frame-label">{aspect.label}</span>
+            <div className="frame-grid" />
           </div>
         </div>
       )}
@@ -343,9 +378,12 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
       {/* Top floating bar */}
       <div className="cam-top">
         <button className="cam-pill" onClick={cycleAspect} aria-label="อัตราส่วน">
-          {FORMAT_LABEL[aspectId] || '35mm'}
+          {aspect.label}
         </button>
         <div className="cam-top-right">
+          <button className="cam-ico" onClick={toggleFullscreen} aria-label={fs ? 'ออกจากเต็มจอ' : 'เต็มจอ'}>
+            <Icon name={fs ? 'shrink' : 'expand'} size={21} />
+          </button>
           {mode === 'photo' && (
             <button className={`cam-ico ${selfTimer ? 'on' : ''}`} onClick={() => setSelfTimer((t) => (t === 0 ? 3 : t === 3 ? 10 : 0))} aria-label="ตั้งเวลา">
               <Icon name="timer" size={22} />
@@ -362,40 +400,49 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
 
       {/* Adjust popover */}
       {showAdjust && mode === 'photo' && (
-        <div className="adjust-pop glass">
-          <label className="adjust">
-            <span>☀ แสง {exposure > 0 ? `+${exposure.toFixed(1)}` : exposure.toFixed(1)}</span>
-            <input type="range" min="-2" max="2" step="0.1" value={exposure} onChange={(e) => setExposure(Number(e.target.value))} />
-          </label>
-          <label className="adjust">
-            <span>🌡 อุ่น/เย็น {temp > 0 ? `+${temp}` : temp}</span>
-            <input className="temp-slider" type="range" min="-100" max="100" step="5" value={temp} onChange={(e) => setTemp(Number(e.target.value))} />
-          </label>
-          <label className="adjust">
-            <span>✨ แสงรั่ว (Light leak) {leak}%</span>
-            <input type="range" min="0" max="100" step="5" value={leak} onChange={(e) => setLeak(Number(e.target.value))} />
-          </label>
-          <div className="set-row">
-            <span>🗓 วันที่</span>
-            <div className="mini-seg">
-              {[['auto', 'อัตโนมัติ'], ['on', 'เปิด'], ['off', 'ปิด']].map(([v, l]) => (
-                <button key={v} className={timestamp === v ? 'on' : ''} onClick={() => setTimestamp(v)}>{l}</button>
-              ))}
+        <>
+          <div className="adjust-scrim" onClick={() => setShowAdjust(false)} aria-hidden="true" />
+          <div className="adjust-pop glass" role="dialog">
+            <div className="adjust-head">
+              <b>ปรับแต่งกล้อง</b>
+              <button className="adjust-reset" onClick={resetAdjust}><Icon name="reset" size={15} /> ค่าเริ่มต้น</button>
+            </div>
+
+            <label className="adjust">
+              <span><Icon name="sun" size={16} /> แสง <em>{exposure > 0 ? `+${exposure.toFixed(1)}` : exposure.toFixed(1)}</em></span>
+              <input type="range" min="-2" max="2" step="0.1" value={exposure} onChange={(e) => setExposure(Number(e.target.value))} />
+            </label>
+            <label className="adjust">
+              <span><Icon name="thermo" size={16} /> อุ่น/เย็น <em>{temp > 0 ? `+${temp}` : temp}</em></span>
+              <input className="temp-slider" type="range" min="-100" max="100" step="5" value={temp} onChange={(e) => setTemp(Number(e.target.value))} />
+            </label>
+            <label className="adjust">
+              <span><Icon name="sparkles" size={16} /> แสงรั่ว <em>{leak}%</em></span>
+              <input type="range" min="0" max="100" step="5" value={leak} onChange={(e) => setLeak(Number(e.target.value))} />
+            </label>
+
+            <div className="set-row">
+              <span><Icon name="frame" size={16} /> มุมมอง</span>
+              <div className="mini-seg">
+                {[['framed', 'กรอบ'], ['full', 'เต็มจอ']].map(([v, l]) => (
+                  <button key={v} className={viewMode === v ? 'on' : ''} onClick={() => setViewMode(v)}>{l}</button>
+                ))}
+              </div>
+            </div>
+            <div className="set-row">
+              <span><Icon name="calendar" size={16} /> วันที่</span>
+              <div className="mini-seg">
+                {[['auto', 'อัตโนมัติ'], ['on', 'เปิด'], ['off', 'ปิด']].map(([v, l]) => (
+                  <button key={v} className={timestamp === v ? 'on' : ''} onClick={() => setTimestamp(v)}>{l}</button>
+                ))}
+              </div>
+            </div>
+            <div className="set-row">
+              <span><Icon name="grid" size={16} /> เส้นกริด</span>
+              <button className={`mini-toggle ${grid ? 'on' : ''}`} onClick={() => setGrid((g) => !g)} aria-label="เส้นกริด"><i /></button>
             </div>
           </div>
-          <div className="set-row">
-            <span>▢ มุมมอง</span>
-            <div className="mini-seg">
-              {[['full', 'เต็มจอ'], ['framed', 'กรอบ 35mm']].map(([v, l]) => (
-                <button key={v} className={viewMode === v ? 'on' : ''} onClick={() => setViewMode(v)}>{l}</button>
-              ))}
-            </div>
-          </div>
-          <div className="set-row">
-            <span>▦ เส้นกริด</span>
-            <button className={`mini-toggle ${grid ? 'on' : ''}`} onClick={() => setGrid((g) => !g)} aria-label="เส้นกริด"><i /></button>
-          </div>
-        </div>
+        </>
       )}
 
       {camState !== 'live' && (
