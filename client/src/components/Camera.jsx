@@ -76,20 +76,22 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
     track.applyConstraints({ advanced: [{ zoom: z }] }).catch(() => {});
   }, [zoom, camState]);
 
-  // Immersive full-screen — hides the browser's top/bottom chrome so it feels
-  // like a native app. Works in Android Chrome / desktop; iOS Safari blocks the
-  // Fullscreen API on non-video elements, so there we nudge "Add to Home Screen".
+  // Immersive full-screen — hides the app header + tab bar (via body.immersive)
+  // so the camera fills the whole screen, and also asks the browser to drop its
+  // own chrome. The Fullscreen API works on Android/desktop; iOS Safari blocks
+  // it on non-video elements, but the app-chrome still collapses so it still
+  // "goes full-screen" from the guest's point of view.
   async function toggleFullscreen() {
+    const next = !fs;
+    setFs(next);
     try {
-      if (!document.fullscreenElement) {
-        const el = document.documentElement;
-        if (el.requestFullscreen) await el.requestFullscreen({ navigationUI: 'hide' });
-        else throw new Error('unsupported');
-      } else if (document.exitFullscreen) {
+      if (next) {
+        if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen({ navigationUI: 'hide' });
+      } else if (document.fullscreenElement && document.exitFullscreen) {
         await document.exitFullscreen();
       }
     } catch {
-      onToast?.('เต็มจอไม่ได้บนเบราว์เซอร์นี้ — แตะ "แชร์ → เพิ่มลงหน้าโฮม" เพื่อใช้แบบเต็มจอ');
+      /* iOS: no Fullscreen API — the immersive app-chrome collapse is enough. */
     }
   }
 
@@ -105,8 +107,16 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
     onToast?.('รีเซ็ตเป็นค่าเริ่มต้นแล้ว');
   }
 
+  // Reflect the immersive state onto <body> so Event.jsx's header + tab bar hide.
   useEffect(() => {
-    const onFs = () => setFs(!!document.fullscreenElement);
+    document.body.classList.toggle('immersive', fs);
+    return () => document.body.classList.remove('immersive');
+  }, [fs]);
+
+  // If the browser leaves real full-screen (Android back / system gesture),
+  // drop our immersive state too so the UI comes back in sync.
+  useEffect(() => {
+    const onFs = () => { if (!document.fullscreenElement) setFs(false); };
     document.addEventListener('fullscreenchange', onFs);
     return () => document.removeEventListener('fullscreenchange', onFs);
   }, []);
@@ -160,7 +170,12 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [facing, mode, shot]);
 
-  useEffect(() => () => { stopStream(); clearInterval(countRef.current); }, []);
+  useEffect(() => () => {
+    stopStream();
+    clearInterval(countRef.current);
+    document.body.classList.remove('immersive');
+    if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
+  }, []);
 
   // Low-light hint: sample the frame's average brightness periodically.
   useEffect(() => {
@@ -397,7 +412,7 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
   // ---- Live (Instagram-style full-bleed camera) ----
   const showZoom = camState === 'live' && zoomStops.length > 1 && !countdown;
   return (
-    <div className={`camera ig ${recording ? 'is-recording' : ''}`}>
+    <div className={`camera ig ${mode === 'video' ? 'mode-video' : ''} ${recording ? 'is-recording' : ''}`}>
       <video ref={videoRef} className="cam-feed" style={{ filter: liveFilter, transform: camTransform }} playsInline muted />
       <div className="cam-scrim top" />
       <div className="cam-scrim bottom" />

@@ -272,6 +272,14 @@ input[type='text']:focus {
   color: var(--accent-strong);
 }
 
+/* Immersive mode — the camera's full-screen button collapses the app header
+   and tab bar so the live camera truly fills the screen (app-feel). */
+body.immersive .topbar,
+body.immersive .tabbar {
+  display: none;
+}
+body.immersive .event { height: 100dvh; }
+
 /* ---------- Camera ---------- */
 .camera {
   position: absolute;
@@ -728,7 +736,7 @@ input[type='text']:focus {
 .cam-zoom {
   position: absolute;
   left: 50%;
-  bottom: calc(150px + var(--safe-bottom));
+  bottom: calc(218px + var(--safe-bottom));
   transform: translateX(-50%);
   z-index: 5;
   min-width: 44px;
@@ -746,6 +754,7 @@ input[type='text']:focus {
   justify-content: center;
 }
 .cam-zoom span { font-size: 11px; opacity: 0.8; margin-left: 1px; }
+.camera.mode-video:not(.is-recording) .cam-zoom { bottom: calc(150px + var(--safe-bottom)); }
 .camera.is-recording .cam-zoom { bottom: calc(128px + var(--safe-bottom)); }
 
 /* Recording bottom cluster — a red rounded square inside a green progress ring */
@@ -1467,17 +1476,17 @@ input[type='text']:focus {
   padding: 0 30px;
 }
 .camera.ig .shutter {
-  width: 76px; height: 76px;
+  width: 70px; height: 70px;
   border-radius: 50%;
-  border: 5px solid #fff;
-  background: rgba(255, 255, 255, 0.22);
+  border: none;
+  background: #fff;
   padding: 0;
-  transition: transform 0.08s ease, border-radius 0.15s ease, background 0.15s ease;
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.28), 0 0 0 7px #c6f542;
+  transition: transform 0.08s ease, background 0.15s ease;
 }
-.camera.ig .shutter:active { transform: scale(0.93); }
+.camera.ig .shutter:active { transform: scale(0.92); }
 .camera.ig .shutter:disabled { opacity: 0.45; }
-.camera.ig .shutter.video { background: rgba(255, 75, 75, 0.9); }
-.camera.ig .shutter.video.recording { border-radius: 20px; }
+.camera.ig .shutter.video { background: #ff4b4b; }
 .thumb-btn {
   width: 48px; height: 48px;
   border-radius: 14px;
@@ -1498,22 +1507,25 @@ input[type='text']:focus {
   color: #fff;
   display: flex; align-items: center; justify-content: center;
 }
-.mode-switch { display: flex; gap: 28px; justify-content: center; }
+.mode-switch {
+  display: inline-flex;
+  align-self: center;
+  gap: 2px;
+  background: rgba(0, 0, 0, 0.42);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border-radius: 999px;
+  padding: 4px;
+}
 .mode-switch button {
   background: none; border: none;
-  color: rgba(255, 255, 255, 0.55);
-  font-size: 14px; font-weight: 700; letter-spacing: 0.5px;
-  padding: 2px 4px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px; font-weight: 800; letter-spacing: 0.6px;
+  padding: 8px 24px;
+  border-radius: 999px;
+  transition: color 0.15s ease, background 0.15s ease;
 }
-.mode-switch button.active { color: #fff; }
-.mode-switch button.active::after {
-  content: '';
-  display: block;
-  width: 5px; height: 5px;
-  border-radius: 50%;
-  background: var(--accent);
-  margin: 4px auto 0;
-}
+.mode-switch button.active { background: rgba(255, 255, 255, 0.14); color: #c6f542; }
 
 /* ---------- Review (full-bleed) + visibility toggle + hidden badge ---------- */
 .cam-feed.contain { object-fit: contain; background: #000; }
