@@ -35,19 +35,19 @@ export default function Login() {
           <img src="/favicon.svg" alt="" />
           <span>EventCam</span>
         </div>
-        <h1>{mode === 'login' ? 'ยินดีต้อนรับกลับ' : 'สร้างบัญชีผู้จัดงาน'}</h1>
+        <h1>{mode === 'login' ? 'Welcome back' : 'Create a host account'}</h1>
         <p className="auth-sub">
           {mode === 'login'
-            ? 'เข้าสู่ระบบเพื่อสร้างและจัดการอีเวนต์'
-            : 'สมัครเพื่อขอสิทธิ์จัดงาน — เจ้าของเว็บจะอนุมัติก่อนเริ่มใช้งาน'}
+            ? 'Log in to create and manage events'
+            : 'Sign up to request host access — the owner approves before you start'}
         </p>
 
         <div className="seg">
           <button className={mode === 'login' ? 'active' : ''} onClick={() => { setMode('login'); setError(''); }}>
-            เข้าสู่ระบบ
+            Log in
           </button>
           <button className={mode === 'register' ? 'active' : ''} onClick={() => { setMode('register'); setError(''); }}>
-            สมัครสมาชิก
+            Sign up
           </button>
         </div>
 
@@ -55,18 +55,18 @@ export default function Login() {
           {mode === 'register' && (
             <label className="field">
               <Icon name="user" size={18} />
-              <input type="text" placeholder="ชื่อของคุณ" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} />
+              <input type="text" placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} />
             </label>
           )}
           <label className="field">
             <Icon name="mail" size={18} />
-            <input type="email" placeholder="อีเมล" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
+            <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
           </label>
           <label className="field">
             <Icon name="lock" size={18} />
             <input
               type="password"
-              placeholder={mode === 'register' ? 'รหัสผ่าน (อย่างน้อย 8 ตัว)' : 'รหัสผ่าน'}
+              placeholder={mode === 'register' ? 'Password (at least 8 characters)' : 'Password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
@@ -78,11 +78,11 @@ export default function Login() {
           {error && <p className="auth-error">{error}</p>}
 
           <button className="btn" disabled={busy}>
-            {busy ? 'กำลังดำเนินการ…' : mode === 'login' ? 'เข้าสู่ระบบ' : 'สมัครสมาชิก'}
+            {busy ? 'Please wait…' : mode === 'login' ? 'Log in' : 'Sign up'}
           </button>
         </form>
 
-        <p className="auth-foot">แขกที่มาร่วมงานไม่ต้องสมัคร — แค่สแกน QR ก็ลงรูปได้เลย</p>
+        <p className="auth-foot">Guests don’t need to sign up — just scan the QR and start adding photos</p>
       </div>
     </div>
   );

@@ -569,7 +569,7 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
   );
 }
 
-// Green circular progress ring around the video stop button (Dazz-style).
+// Rose circular progress ring around the video stop button.
 function RecRing({ progress }) {
   const r = 34;
   const c = 2 * Math.PI * r;
@@ -577,7 +577,7 @@ function RecRing({ progress }) {
     <svg className="rec-ring" width="78" height="78" viewBox="0 0 78 78" aria-hidden="true">
       <circle cx="39" cy="39" r={r} fill="none" stroke="rgba(255,255,255,0.22)" strokeWidth="3.5" />
       <circle
-        cx="39" cy="39" r={r} fill="none" stroke="#c6f542" strokeWidth="3.5" strokeLinecap="round"
+        cx="39" cy="39" r={r} fill="none" stroke="#f2a9c0" strokeWidth="3.5" strokeLinecap="round"
         strokeDasharray={c} strokeDashoffset={c * (1 - progress)} transform="rotate(-90 39 39)"
       />
     </svg>

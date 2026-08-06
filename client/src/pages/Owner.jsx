@@ -31,11 +31,11 @@ export default function Owner() {
   async function act(id, action) {
     try {
       await authApi.setUserStatus(id, action);
-      setToast(action === 'approve' ? 'อนุมัติแล้ว' : 'อัปเดตแล้ว');
+      setToast(action === 'approve' ? 'Approved' : 'Updated');
       window.setTimeout(() => setToast(''), 1600);
       load();
     } catch (e) {
-      setToast(e.message || 'ไม่สำเร็จ');
+      setToast(e.message || 'Something went wrong');
     }
   }
 
@@ -48,47 +48,47 @@ export default function Owner() {
         <div className="brand" style={{ justifyContent: 'space-between', width: '100%' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <img src="/favicon.svg" alt="" />
-            <h1 style={{ fontSize: 20 }}>อนุมัติสมาชิก</h1>
+            <h1 style={{ fontSize: 20 }}>Approve members</h1>
           </div>
           <Link to="/" className="btn ghost" style={{ width: 'auto', padding: '8px 14px', textDecoration: 'none' }}>
-            กลับหน้าหลัก
+            Home
           </Link>
         </div>
 
         {state === 'loading' && <div className="spinner" style={{ margin: '40px auto' }} />}
-        {state === 'error' && <p style={{ color: 'var(--danger)' }}>โหลดรายชื่อไม่สำเร็จ</p>}
+        {state === 'error' && <p style={{ color: 'var(--danger)' }}>Couldn’t load members</p>}
 
         {state === 'ready' && (
           <>
-            <Section title={`รออนุมัติ (${pending.length})`}>
+            <Section title={`Pending (${pending.length})`}>
               {pending.length === 0 ? (
-                <p className="muted-note">ไม่มีคำขอที่รออนุมัติ 🎉</p>
+                <p className="muted-note">No pending requests 🎉</p>
               ) : (
                 pending.map((u) => (
                   <UserRow key={u.id} u={u}>
                     <button className="btn" style={btn} onClick={() => act(u.id, 'approve')}>
-                      <Icon name="check" size={16} /> อนุมัติ
+                      <Icon name="check" size={16} /> Approve
                     </button>
                     <button className="btn danger" style={btn} onClick={() => act(u.id, 'reject')}>
-                      ปฏิเสธ
+                      Reject
                     </button>
                   </UserRow>
                 ))
               )}
             </Section>
 
-            <Section title={`สมาชิกทั้งหมด (${others.length})`}>
+            <Section title={`All members (${others.length})`}>
               {others.map((u) => (
                 <UserRow key={u.id} u={u}>
                   {u.role === 'owner' ? (
-                    <span className="badge owner">เจ้าของ</span>
+                    <span className="badge owner">Owner</span>
                   ) : u.status === 'approved' ? (
                     <button className="btn secondary" style={btn} onClick={() => act(u.id, 'reject')}>
-                      ระงับ
+                      Suspend
                     </button>
                   ) : (
                     <button className="btn" style={btn} onClick={() => act(u.id, 'approve')}>
-                      <Icon name="check" size={16} /> เปิดใช้อีกครั้ง
+                      <Icon name="check" size={16} /> Reactivate
                     </button>
                   )}
                 </UserRow>
@@ -129,5 +129,5 @@ function UserRow({ u, children }) {
 }
 
 function statusLabel(s) {
-  return s === 'approved' ? 'อนุมัติแล้ว' : s === 'pending' ? 'รออนุมัติ' : 'ถูกปฏิเสธ';
+  return s === 'approved' ? 'Approved' : s === 'pending' ? 'Pending' : 'Rejected';
 }
