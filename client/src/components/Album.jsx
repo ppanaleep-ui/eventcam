@@ -4,6 +4,7 @@ import { getGuestId } from '../lib/guest.js';
 import { favSet } from '../lib/favorites.js';
 import { saveToDevice, produceFromImageFile } from '../lib/capture.js';
 import { getFilm } from '../lib/filters.js';
+import { primaryDescriptorForUrl, cachedDescriptors, distance, MATCH_THRESHOLD } from '../lib/faces.js';
 import Lightbox from './Lightbox.jsx';
 import Icon from './Icon.jsx';
 
@@ -26,6 +27,9 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
   const [uploading, setUploading] = useState('');
   const [pendingFiles, setPendingFiles] = useState(null); // files picked, awaiting confirm
   const [uploadVisible, setUploadVisible] = useState(true); // let others see this upload?
+  const [faceScan, setFaceScan] = useState(null); // {done,total} while searching
+  const [faceMatchIds, setFaceMatchIds] = useState(null); // Set of matching ids | null
+  const faceRef = useRef(null);
   const sentinel = useRef(null);
   const pressTimer = useRef(null);
   const suppressClick = useRef(false);
@@ -42,7 +46,8 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
     (p) =>
       (typeFilter === 'all' || p.kind === typeFilter || (typeFilter === 'photo' && !p.kind)) &&
       (!favOnly || favs.has(p.id)) &&
-      (!mineOnly || (p.ownerId && p.ownerId === myGuestId))
+      (!mineOnly || (p.ownerId && p.ownerId === myGuestId)) &&
+      (!faceMatchIds || faceMatchIds.has(p.id))
   );
 
   const loadMore = useCallback(async () => {
@@ -224,6 +229,67 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
     0
   );
 
+  // ---- face search (all on-device) ----
+  // Load every page of the album so the whole event is searched, not just what
+  // has scrolled into view.
+  async function loadAllPhotos() {
+    let all = [...photos];
+    const ids = new Set(all.map((p) => p.id));
+    let before = all.length ? all[all.length - 1].createdAt : undefined;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const { items } = await api.listPhotos(eventId, { before, limit: 60, token: adminToken });
+      const fresh = items.filter((p) => !ids.has(p.id));
+      fresh.forEach((p) => ids.add(p.id));
+      all = all.concat(fresh);
+      if (items.length < 60) break;
+      before = items[items.length - 1].createdAt;
+    }
+    setPhotos(all);
+    setDone(true);
+    return all;
+  }
+
+  async function onFacePick(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const refUrl = URL.createObjectURL(file);
+    setFaceScan({ done: 0, total: 0, phase: 'model' });
+    onToast?.('กำลังเตรียมระบบค้นหาใบหน้า…');
+    let ref;
+    try {
+      ref = await primaryDescriptorForUrl(refUrl);
+    } catch {
+      setFaceScan(null);
+      URL.revokeObjectURL(refUrl);
+      return onToast?.('โหลดระบบค้นหาใบหน้าไม่สำเร็จ');
+    }
+    URL.revokeObjectURL(refUrl);
+    if (!ref) {
+      setFaceScan(null);
+      return onToast?.('ไม่พบใบหน้าในรูปนี้ ลองรูปที่เห็นหน้าชัด ๆ');
+    }
+
+    const all = await loadAllPhotos();
+    const targets = all.filter((p) => p.kind !== 'video' && p.url);
+    const matches = new Set();
+    for (let i = 0; i < targets.length; i++) {
+      setFaceScan({ done: i, total: targets.length, phase: 'scan' });
+      try {
+        const descs = await cachedDescriptors(targets[i].id, targets[i].url);
+        if (descs.some((d) => distance(d, ref) < MATCH_THRESHOLD)) matches.add(targets[i].id);
+      } catch { /* skip unreadable image */ }
+    }
+    setFaceScan(null);
+    setFaceMatchIds(matches);
+    // Clear conflicting filters so the matches actually show.
+    setMineOnly(false);
+    setFavOnly(false);
+    setTypeFilter('all');
+    onToast?.(matches.size ? `พบ ${matches.size} รูปที่มีใบหน้านี้ ✨` : 'ไม่พบรูปที่มีใบหน้านี้');
+  }
+
   // ---- upload from album ----
   // Step 1: pick files, then show a confirm sheet where the uploader chooses
   // (at the moment of confirming, per upload) whether others may see them.
@@ -320,6 +386,9 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
             ))}
           </div>
           <div className="album-head-tools">
+            <button className="fav-filter" onClick={() => faceRef.current?.click()} aria-label="ค้นหาด้วยใบหน้า">
+              <Icon name="scanface" size={16} /> หาหน้า
+            </button>
             <button className={`fav-filter ${mineOnly ? 'on' : ''}`} onClick={() => setMineOnly((v) => !v)} aria-label="เฉพาะรูปของฉัน">
               <Icon name="user" size={16} /> ของฉัน
             </button>
@@ -327,6 +396,14 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
               <Icon name="star" size={16} filled={favOnly} />
             </button>
           </div>
+        </div>
+      )}
+      <input ref={faceRef} type="file" accept="image/*" onChange={onFacePick} hidden />
+
+      {faceMatchIds && !selectMode && (
+        <div className="face-banner">
+          <span><Icon name="scanface" size={16} /> รูปที่มีใบหน้านี้ · {faceMatchIds.size} รูป</span>
+          <button className="link-btn" onClick={() => setFaceMatchIds(null)}>ล้าง</button>
         </div>
       )}
 
@@ -396,6 +473,22 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
               <Icon name="trash" size={19} /> ลบ {deletableCount}
             </button>
           )}
+        </div>
+      )}
+
+      {faceScan && (
+        <div className="face-scan-overlay">
+          <div className="face-scan-card">
+            <div className="spinner" />
+            <b>{faceScan.phase === 'model' ? 'กำลังเตรียมระบบค้นหาใบหน้า…' : 'กำลังค้นหาใบหน้า…'}</b>
+            {faceScan.phase === 'scan' && faceScan.total > 0 && (
+              <>
+                <span>{faceScan.done} / {faceScan.total} รูป</span>
+                <div className="face-scan-bar"><div style={{ width: `${Math.round((faceScan.done / faceScan.total) * 100)}%` }} /></div>
+              </>
+            )}
+            <span className="face-scan-note">ประมวลผลบนเครื่องคุณเอง — ไม่ส่งข้อมูลใบหน้าออกไปไหน</span>
+          </div>
         </div>
       )}
 
