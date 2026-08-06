@@ -23,6 +23,7 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
   const [selected, setSelected] = useState(() => new Set());
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState('');
+  const [uploadVisible, setUploadVisible] = useState(true); // let others see uploads?
   const sentinel = useRef(null);
   const pressTimer = useRef(null);
   const suppressClick = useRef(false);
@@ -203,22 +204,30 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
       setUploading(`${i + 1}/${files.length}`);
       try {
         if (f.type.startsWith('video/')) {
-          const dto = await api.uploadMedia(eventId, { full: f, guestName, kind: 'video' });
+          const dto = await api.uploadMedia(eventId, { full: f, guestName, kind: 'video', hidden: !uploadVisible });
           onUploaded?.(dto);
         } else {
           const r = await produceFromImageFile(f, orig, { temp: 0, exposure: 0 });
-          const dto = await api.uploadMedia(eventId, { full: r.fullBlob, thumb: r.thumbBlob, guestName, kind: 'photo', filter: 'original', width: r.width, height: r.height });
+          const dto = await api.uploadMedia(eventId, { full: r.fullBlob, thumb: r.thumbBlob, guestName, kind: 'photo', filter: 'original', width: r.width, height: r.height, hidden: !uploadVisible });
           onUploaded?.(dto);
         }
         ok++;
       } catch {}
     }
     setUploading('');
-    onToast?.(`เพิ่ม ${ok}/${files.length} รูปลงอัลบั้มแล้ว ✨`);
+    onToast?.(uploadVisible ? `เพิ่ม ${ok}/${files.length} รูปลงอัลบั้มแล้ว ✨` : `เพิ่ม ${ok}/${files.length} รูปแบบส่วนตัวแล้ว 🔒`);
   }
 
   const uploadFab = (
     <>
+      <button
+        className={`upload-vis ${uploadVisible ? '' : 'off'}`}
+        onClick={() => setUploadVisible((v) => !v)}
+        aria-label="ตั้งค่าการมองเห็นของรูปที่อัปโหลด"
+      >
+        <Icon name={uploadVisible ? 'user' : 'eyeOff'} size={15} />
+        {uploadVisible ? 'ทุกคนเห็นได้' : 'ส่วนตัว'}
+      </button>
       <button className="album-fab" onClick={() => fileRef.current?.click()} aria-label="อัปโหลดรูป">
         {uploading ? <span className="fab-count">{uploading}</span> : <Icon name="imagePlus" size={26} />}
       </button>
