@@ -28,7 +28,7 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
 
   const [mode, setMode] = useState('photo');
   const [facing, setFacing] = useState('environment');
-  const [filmId, setFilmId] = useState('dclassic');
+  const [filmId, setFilmId] = useState('kodak');
   const [aspectId, setAspectId] = useState('2:3'); // default: 35mm portrait
   const [temp, setTemp] = useState(0);
   const [exposure, setExposure] = useState(0);

@@ -16,6 +16,18 @@ export const FILMS = [
     grade: { contrast: 1, lift: 0, gamma: 1, sat: 1, gain: [1, 1, 1], shadow: [0, 0, 0], highlight: [0, 0, 0] },
     grain: 0, halation: 0, vignette: 0 },
 
+  // Warm, soft, nostalgic film (Kodak Portra / Fuji in sunlight): gentle
+  // contrast, lifted warm shadows, creamy glowing highlights, natural skin.
+  { id: 'kodak', name: 'Kodak', css: 'brightness(1.05) saturate(1.05) contrast(0.96) sepia(0.08)',
+    grade: { contrast: 0.97, lift: 0.07, gamma: 0.97, sat: 1.06, gain: [1.06, 1.0, 0.92], shadow: [7, 3, -5], highlight: [13, 6, -4] },
+    grain: 0.06, halation: 0.42, vignette: 0.2 },
+
+  // Bright, airy, dreamy — high-key with a big highlight bloom (that glowing
+  // sun-washed street-portrait look). Faded blacks, soft contrast.
+  { id: 'bloom', name: 'Bloom', css: 'brightness(1.1) saturate(1.02) contrast(0.9) sepia(0.06)',
+    grade: { contrast: 0.9, lift: 0.12, gamma: 0.95, sat: 1.0, gain: [1.05, 1.01, 0.95], shadow: [8, 4, -2], highlight: [16, 8, -2] },
+    grain: 0.05, halation: 0.55, vignette: 0.14 },
+
   // Matches Dazz "D Classic": cool green-grey cast, desaturated, moody/dark,
   // heavy fine grain, and an orange LED date stamp.
   { id: 'dclassic', name: 'D Classic', css: 'saturate(0.72) contrast(1.06) brightness(0.97) hue-rotate(-6deg) sepia(0.05)',
