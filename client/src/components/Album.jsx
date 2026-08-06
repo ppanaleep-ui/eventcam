@@ -98,21 +98,26 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
     setSelected(new Set());
     endDrag();
   }
-  // Press-and-hold on a tile arms range drag-select (and enters select mode if
-  // needed). A normal swipe scrolls the album; only an intentional hold starts
-  // selecting, and while dragging we block page scroll.
+  // Selection gestures:
+  //  • Not in select mode: press-and-hold a photo to enter select mode (and
+  //    start painting). A normal swipe just scrolls / browses.
+  //  • In select mode: a mostly-HORIZONTAL swipe paints across photos; a
+  //    mostly-VERTICAL swipe scrolls as usual — so you can always scroll up,
+  //    and drag-select "just works" without holding.
   function tilePointerDown(e, id, curSel) {
-    startPt.current = { x: e.clientX, y: e.clientY };
+    startPt.current = { x: e.clientX, y: e.clientY, id, sel: curSel };
+    drag.current.decided = false;
     clearTimeout(pressTimer.current);
+    if (selectMode) return; // decide paint-vs-scroll on first move
     pressTimer.current = setTimeout(() => {
       pressTimer.current = null;
-      if (!selectMode) setSelectMode(true);
+      setSelectMode(true);
       armDrag(id, curSel);
       if (navigator.vibrate) navigator.vibrate(12);
     }, 300);
   }
   function armDrag(id, curSel) {
-    drag.current = { active: true, intent: curSel ? 'remove' : 'add', seen: new Set([id]), x: startPt.current.x, y: startPt.current.y };
+    drag.current = { active: true, decided: true, intent: curSel ? 'remove' : 'add', seen: new Set([id]), x: startPt.current.x, y: startPt.current.y };
     applySel(id);
     suppressClick.current = true;
     startEdgeScroll();
@@ -132,10 +137,19 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
     }
   }
   function gridPointerMove(e) {
-    // A real move before the hold fires = a scroll gesture → cancel the arm.
-    if (pressTimer.current && (Math.abs(e.clientX - startPt.current.x) > 10 || Math.abs(e.clientY - startPt.current.y) > 10)) {
-      clearTimeout(pressTimer.current);
-      pressTimer.current = null;
+    const dx = e.clientX - startPt.current.x;
+    const dy = e.clientY - startPt.current.y;
+    if (!selectMode) {
+      // A real move before the hold fires = a scroll gesture → cancel the arm.
+      if (pressTimer.current && Math.hypot(dx, dy) > 12) {
+        clearTimeout(pressTimer.current);
+        pressTimer.current = null;
+      }
+    } else if (!drag.current.active && !drag.current.decided && Math.hypot(dx, dy) > 12) {
+      // First real move in select mode decides the gesture.
+      drag.current.decided = true;
+      if (Math.abs(dx) >= Math.abs(dy)) armDrag(startPt.current.id, startPt.current.sel); // horizontal → paint
+      // vertical → leave it: native scroll runs
     }
     if (!drag.current.active) return;
     drag.current.x = e.clientX;
@@ -146,6 +160,7 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
     clearTimeout(pressTimer.current);
     pressTimer.current = null;
     drag.current.active = false;
+    drag.current.decided = false;
     clearInterval(edgeTimer.current);
     const a = albumRef.current;
     if (a && touchBlock.current) {
@@ -375,7 +390,7 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
       {selectMode ? (
         <div className="album-head select">
           <button className="link-btn" onClick={exitSelect}>Cancel</button>
-          <span className="album-count">{selected.size} selected</span>
+          <span className="album-count">{selected.size ? `${selected.size} selected` : 'Swipe to select'}</span>
           <button className="link-btn" onClick={() => setSelected(new Set(shown.map((p) => p.id)))}>Select all</button>
         </div>
       ) : (
@@ -419,7 +434,6 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
           onPointerMove={gridPointerMove}
           onPointerUp={endDrag}
           onPointerCancel={endDrag}
-          onPointerLeave={endDrag}
         >
           {shown.map((p, i) => {
             const sel = selected.has(p.id);
@@ -435,7 +449,7 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
                 {p.kind === 'video' && !p.thumbUrl ? (
                   <div className="vid-holder" />
                 ) : (
-                  <img src={p.thumbUrl || p.url} alt="" loading="lazy" onLoad={(e) => e.currentTarget.classList.add('loaded')} />
+                  <img src={p.thumbUrl || p.url} alt="" loading="lazy" draggable={false} onLoad={(e) => e.currentTarget.classList.add('loaded')} />
                 )}
                 {p.kind === 'video' && (
                   <>
