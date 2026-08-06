@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useParams, useSearchParams, Link } from 'react-router-dom';
+import { useParams, useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { getGuestName, getGuestId } from '../lib/guest.js';
 import { getAdminToken } from '../lib/admin.js';
@@ -12,6 +12,7 @@ import Icon from '../components/Icon.jsx';
 
 export default function Event() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [params] = useSearchParams();
   const [event, setEvent] = useState(null);
   const [status, setStatus] = useState('loading'); // loading | ready | notfound
@@ -190,12 +191,19 @@ export default function Event() {
     <div className="app">
       <div className="event">
         <header className="topbar">
-          <div className="title">
-            <b>{event.name}</b>
-            <span>
-              {live && <span className="live-dot" />}
-              {live ? 'สด' : 'กำลังเชื่อมต่อ…'}
-            </span>
+          <div className="topbar-left">
+            {isHost && (
+              <button className="topbar-home" onClick={() => navigate('/')} aria-label="กลับหน้าหลัก" title="กลับหน้าหลัก">
+                <Icon name="home" size={20} />
+              </button>
+            )}
+            <div className="title">
+              <b>{event.name}</b>
+              <span>
+                {live && <span className="live-dot" />}
+                {live ? 'สด' : 'กำลังเชื่อมต่อ…'}
+              </span>
+            </div>
           </div>
           <div className="count-pill"><Icon name="images" size={15} /> {count}</div>
         </header>
