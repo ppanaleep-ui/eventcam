@@ -1976,10 +1976,11 @@ body.immersive .event { height: 100dvh; }
 .adjust-reset {
   white-space: nowrap;
 }
-/* Filter row scrolls sideways instead of wrapping if it ever gets tight. */
-.album-head { flex-wrap: nowrap; gap: 8px; }
-.album-head .seg-filter { flex-shrink: 1; min-width: 0; }
-.album-head-tools { flex-shrink: 0; }
+/* Header wraps to a second row instead of squishing — so the All/Photos/Videos
+   pill never clips its own text. */
+.album-head { flex-wrap: wrap; gap: 8px; row-gap: 10px; }
+.album-head .seg-filter { flex-shrink: 0; }
+.album-head-tools { flex-shrink: 0; margin-left: auto; }
 .select-bar .btn {
   max-width: 420px;
   width: auto;
