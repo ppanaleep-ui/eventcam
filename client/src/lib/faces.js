@@ -59,13 +59,13 @@ function loadInput(url, max = 1024) {
   });
 }
 
-// All face descriptors found in an image URL (128-float vectors). A larger
-// input + lower score threshold catches smaller, angled and partly-covered
-// faces (e.g. a hand near the eyes) instead of missing them.
+// All face descriptors found in an image URL (128-float vectors). A slightly
+// lower score threshold catches angled / partly-covered faces (e.g. a hand
+// near the eyes); the input stays at 1024 px so mobile WebGL doesn't choke.
 export async function descriptorsForUrl(url) {
   const faceapi = await loadFaceApi();
-  const input = await loadInput(url, 1280);
-  const opts = new faceapi.TinyFaceDetectorOptions({ inputSize: 512, scoreThreshold: 0.3 });
+  const input = await loadInput(url, 1024);
+  const opts = new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.4 });
   const res = await faceapi.detectAllFaces(input, opts).withFaceLandmarks(true).withFaceDescriptors();
   return res.map((r) => r.descriptor);
 }
@@ -74,7 +74,7 @@ export async function descriptorsForUrl(url) {
 export async function primaryDescriptorForUrl(url) {
   const faceapi = await loadFaceApi();
   const input = await loadInput(url, 1024);
-  const opts = new faceapi.TinyFaceDetectorOptions({ inputSize: 512, scoreThreshold: 0.3 });
+  const opts = new faceapi.TinyFaceDetectorOptions({ inputSize: 512, scoreThreshold: 0.35 });
   const res = await faceapi.detectAllFaces(input, opts).withFaceLandmarks(true).withFaceDescriptors();
   if (!res.length) return null;
   res.sort((a, b) => b.detection.box.area - a.detection.box.area);
@@ -93,7 +93,7 @@ export function distance(a, b) {
 // Lower = stricter. face-api descriptors match the same person below ~0.6; we
 // lean lenient (0.62) so lookalikes / close-ups / partly-covered faces still
 // surface, per the "show near-matches too" ask.
-export const MATCH_THRESHOLD = 0.62;
+export const MATCH_THRESHOLD = 0.6;
 
 // Per-photo descriptor cache so repeat searches in a session don't recompute.
 const cache = new Map();

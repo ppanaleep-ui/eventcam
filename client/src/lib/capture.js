@@ -55,7 +55,14 @@ export async function produceImages(source, sw, sh, film, ratio, opts) {
   const cropped = document.createElement('canvas');
   cropped.width = outSize.w;
   cropped.height = outSize.h;
-  cropped.getContext('2d').drawImage(source, sx, sy, cw, ch, 0, 0, outSize.w, outSize.h);
+  const cctx = cropped.getContext('2d');
+  // Mirror horizontally for the front camera so the saved photo matches the
+  // mirror-style live preview (what you saw is what you get).
+  if (opts?.mirror) {
+    cctx.translate(outSize.w, 0);
+    cctx.scale(-1, 1);
+  }
+  cctx.drawImage(source, sx, sy, cw, ch, 0, 0, outSize.w, outSize.h);
 
   const fullCanvas = renderFilm(cropped, outSize.w, outSize.h, film, opts);
   const fullBlob = await canvasToBlob(fullCanvas, FULL_Q);

@@ -219,7 +219,7 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
   async function doCapture() {
     const video = videoRef.current;
     if (!video || !video.videoWidth) return;
-    const captureAdjust = { ...adjust, zoom: hwZoomRef.current ? 1 : zoom };
+    const captureAdjust = { ...adjust, zoom: hwZoomRef.current ? 1 : zoom, mirror: facing === 'user' };
     const result = await produceImages(video, video.videoWidth, video.videoHeight, film, aspect.ratio, captureAdjust);
     stopStream();
     setShot({ kind: 'photo', ...result });

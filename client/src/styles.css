@@ -854,17 +854,25 @@ body.immersive .event { height: 100dvh; }
   font-size: 13px;
 }
 .admin-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 8px;
   margin-top: 12px;
 }
 .admin-actions .btn {
-  width: auto;
-  padding: 8px 12px;
+  width: 100%;
+  padding: 10px 8px;
   font-size: 13px;
   text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  min-width: 0;
 }
+/* Delete gets its own full-width row so it reads as the destructive action. */
+.admin-actions .btn.danger { grid-column: 1 / -1; }
 .admin-qr {
   margin-top: 12px;
   background: #fff;
