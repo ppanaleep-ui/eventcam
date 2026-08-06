@@ -10,17 +10,17 @@ export default function Invite({ event, isHost, adminToken, onToast }) {
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
-      onToast?.('คัดลอกลิงก์แล้ว');
+      onToast?.('Link copied');
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      onToast?.('คัดลอกไม่ได้ — กดค้างที่ลิงก์');
+      onToast?.('Couldn’t copy — press and hold the link');
     }
   }
 
   async function shareLink() {
     try {
       if (navigator.share) {
-        await navigator.share({ title: event.name, text: `เข้าร่วมอัลบั้มงาน "${event.name}"`, url });
+        await navigator.share({ title: event.name, text: `Join the album for "${event.name}"`, url });
       } else {
         copy();
       }
@@ -32,13 +32,13 @@ export default function Invite({ event, isHost, adminToken, onToast }) {
   return (
     <div className="invite">
       <h2 style={{ margin: '4px 0 4px' }}>
-        เชิญ <span style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', color: 'var(--accent-strong)' }}>เพื่อน</span>
+        Invite <span style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', color: 'var(--accent-strong)' }}>friends</span>
       </h2>
-      <p style={{ color: 'var(--muted)', marginTop: 0 }}>ให้แขกสแกนเพื่อเข้าร่วม ไม่ต้องดาวน์โหลดแอป</p>
+      <p style={{ color: 'var(--muted)', marginTop: 0 }}>Guests scan to join — no app to download.</p>
 
       <div className="qr-card">
-        <img src={api.qrUrl(event.id)} alt="สแกนเพื่อเข้าร่วมกล้องอีเวนต์" />
-        <div className="no-dl">ไม่ต้องติดตั้งแอป</div>
+        <img src={api.qrUrl(event.id)} alt="Scan to join the event camera" />
+        <div className="no-dl">No app to install</div>
       </div>
 
       <div className="link-row">
@@ -49,25 +49,25 @@ export default function Invite({ event, isHost, adminToken, onToast }) {
       </div>
 
       <button className="btn icon-btn" onClick={shareLink}>
-        <Icon name="share" size={18} /> แชร์ลิงก์
+        <Icon name="share" size={18} /> Share link
       </button>
 
       <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 20 }}>
-        ทุกคนที่มีลิงก์นี้เข้าดูอัลบั้มและเพิ่มรูปได้ — แชร์ให้เฉพาะแขกของคุณ
+        Anyone with this link can view the album and add photos — share it only with your guests.
       </p>
 
       {isHost && (
         <div className="host-panel">
-          <span className="host-tag"><Icon name="shield" size={14} /> สิทธิ์เจ้าภาพ</span>
+          <span className="host-tag"><Icon name="shield" size={14} /> Host controls</span>
           <p style={{ color: 'var(--muted)', fontSize: 14, marginTop: 0 }}>
-            ดาวน์โหลดรูปทั้งงานเป็น ZIP หรือลบรูปใดก็ได้ (แตะรูปแล้วกดถังขยะ)
+            Download the whole event as a ZIP, or delete any photo (tap a photo, then the trash icon).
           </p>
           <a
             className="btn icon-btn"
             href={api.downloadAllUrl(event.id, adminToken)}
             style={{ display: 'inline-flex', width: '100%', textDecoration: 'none', justifyContent: 'center' }}
           >
-            <Icon name="download" size={18} /> ดาวน์โหลดทั้งงาน (.zip)
+            <Icon name="download" size={18} /> Download whole event (.zip)
           </a>
         </div>
       )}

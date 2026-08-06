@@ -63,11 +63,12 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
     const i = zoomStops.indexOf(z);
     return zoomStops[(i + 1) % zoomStops.length] ?? 1;
   });
-  // Digital zoom (used only when the device has no HW zoom track). We do NOT
-  // mirror the front camera — the preview then matches the saved photo exactly
-  // (no surprise left-right flip between what you see and what's uploaded).
+  // Mirror the front-camera *preview* only, so it feels like a mirror (what you
+  // see when you look at yourself) — the natural selfie experience. The captured
+  // photo is drawn from the raw video frame, so the saved image is NOT mirrored.
   const digitalScale = !hwZoomRef.current && zoom > 1 ? zoom : 1;
-  const camTransform = digitalScale > 1 ? `scale(${digitalScale})` : undefined;
+  const camTransform =
+    `${facing === 'user' ? 'scaleX(-1) ' : ''}${digitalScale > 1 ? `scale(${digitalScale})` : ''}`.trim() || undefined;
 
   // Drive the real lens when we have a HW zoom track.
   useEffect(() => {
@@ -106,7 +107,7 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
     setSelfTimer(0);
     setViewMode('framed');
     setAspectId('2:3');
-    onToast?.('รีเซ็ตเป็นค่าเริ่มต้นแล้ว');
+    onToast?.('Reset to defaults');
   }
 
   // Reflect the immersive state onto <body> so Event.jsx's header + tab bar hide.
@@ -253,7 +254,7 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
     try {
       rec = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
     } catch {
-      onToast?.('อุปกรณ์นี้อัดวิดีโอไม่ได้');
+      onToast?.('This device can’t record video');
       return;
     }
     chunksRef.current = [];
@@ -308,7 +309,7 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
       setProgress((i) / files.length);
-      onToast?.(`กำลังอัปโหลด ${i + 1}/${files.length}…`);
+      onToast?.(`Uploading ${i + 1}/${files.length}…`);
       try {
         if (f.type.startsWith('video/')) {
           const dto = await api.uploadMedia(eventId, { full: f, guestName, kind: 'video', hidden: !visible });
@@ -324,7 +325,7 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
       }
     }
     setProgress(null);
-    onToast?.(`เพิ่ม ${ok}/${files.length} รายการลงอัลบั้มแล้ว ✨`);
+    onToast?.(`Added ${ok}/${files.length} to the album ✨`);
   }
 
   async function onPickFile(e) {
@@ -347,7 +348,7 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
         setShot({ kind: 'photo', ...result });
       }
     } catch {
-      onToast?.('เปิดไฟล์นี้ไม่ได้');
+      onToast?.('Couldn’t open this file');
     }
   }
 
@@ -362,9 +363,9 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
     const fn = shot.kind === 'video' ? `eventcam-${stamp}.${shot.ext || 'mp4'}` : `eventcam-${stamp}.jpg`;
     try {
       const r = await saveToDevice(shot.fullBlob, fn);
-      if (r !== 'cancelled') onToast?.('บันทึกลงเครื่องแล้ว');
+      if (r !== 'cancelled') onToast?.('Saved to your device');
     } catch {
-      onToast?.('บันทึกไม่สำเร็จ');
+      onToast?.('Save failed');
     }
   }
   async function send() {
@@ -377,10 +378,10 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
         duration: shot.duration, hidden: !visible, onProgress: setProgress,
       });
       onUploaded?.(dto);
-      onToast?.(visible ? (shot.kind === 'video' ? 'เพิ่มวิดีโอแล้ว ✨' : 'เพิ่มรูปแล้ว ✨') : 'เพิ่มแบบส่วนตัวแล้ว 🔒');
+      onToast?.(visible ? (shot.kind === 'video' ? 'Video added ✨' : 'Photo added ✨') : 'Added privately 🔒');
       retake();
     } catch (err) {
-      onToast?.(err.message || 'อัปโหลดไม่สำเร็จ');
+      onToast?.(err.message || 'Upload failed');
       setProgress(null);
     }
   }
@@ -391,20 +392,20 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
       <div className="camera ig review">
         {shot.kind === 'video'
           ? <video className="cam-feed contain" src={shot.videoUrl} controls playsInline autoPlay loop muted />
-          : <img className="cam-feed contain" src={shot.previewUrl} alt="ภาพที่ถ่าย" />}
+          : <img className="cam-feed contain" src={shot.previewUrl} alt="Captured photo" />}
         {progress !== null && <div className="upload-bar"><div style={{ width: `${Math.round(progress * 100)}%` }} /></div>}
         <div className="cam-scrim bottom" />
 
         <div className="cam-bottom">
           <button className={`vis-toggle ${visible ? '' : 'off'}`} onClick={() => setVisible((v) => !v)} disabled={progress !== null}>
             <Icon name={visible ? 'user' : 'eyeOff'} size={18} />
-            <span>{visible ? 'ทุกคนในงานเห็นได้' : 'ส่วนตัว (เฉพาะคุณ & เจ้าของงาน)'}</span>
+            <span>{visible ? 'Everyone can see' : 'Private (only you & the host)'}</span>
             <span className={`switch ${visible ? 'on' : ''}`} aria-hidden="true"><i /></span>
           </button>
           <div className="review-actions">
-            <button className="btn ghost" onClick={retake} disabled={progress !== null}>ถ่ายใหม่</button>
-            <button className="round-btn light" onClick={saveShot} disabled={progress !== null} aria-label="บันทึกลงเครื่อง"><Icon name="download" size={20} /></button>
-            <button className="btn" onClick={send} disabled={progress !== null}>{progress !== null ? `กำลังส่ง ${Math.round(progress * 100)}%` : 'เพิ่มลงอัลบั้ม'}</button>
+            <button className="btn ghost" onClick={retake} disabled={progress !== null}>Retake</button>
+            <button className="round-btn light" onClick={saveShot} disabled={progress !== null} aria-label="Save to device"><Icon name="download" size={20} /></button>
+            <button className="btn" onClick={send} disabled={progress !== null}>{progress !== null ? `Sending ${Math.round(progress * 100)}%` : 'Add to album'}</button>
           </div>
         </div>
       </div>
@@ -439,7 +440,7 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
       )}
 
       {showZoom && (
-        <button className="cam-zoom" onClick={cycleZoom} aria-label="ซูม">
+        <button className="cam-zoom" onClick={cycleZoom} aria-label="Zoom">
           {zoom === 0.5 ? '.5' : zoom}<span>×</span>
         </button>
       )}
@@ -447,21 +448,21 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
       {/* Top floating bar (hidden while recording for a clean frame) */}
       {!recording && (
       <div className="cam-top">
-        <button className="cam-pill" onClick={cycleAspect} aria-label="อัตราส่วน">
+        <button className="cam-pill" onClick={cycleAspect} aria-label="Aspect ratio">
           {aspect.label}
         </button>
         <div className="cam-top-right">
-          <button className="cam-ico" onClick={toggleFullscreen} aria-label={fs ? 'ออกจากเต็มจอ' : 'เต็มจอ'}>
+          <button className="cam-ico" onClick={toggleFullscreen} aria-label={fs ? 'Exit full screen' : 'Full screen'}>
             <Icon name={fs ? 'shrink' : 'expand'} size={21} />
           </button>
           {mode === 'photo' && (
-            <button className={`cam-ico ${selfTimer ? 'on' : ''}`} onClick={() => setSelfTimer((t) => (t === 0 ? 3 : t === 3 ? 10 : 0))} aria-label="ตั้งเวลา">
+            <button className={`cam-ico ${selfTimer ? 'on' : ''}`} onClick={() => setSelfTimer((t) => (t === 0 ? 3 : t === 3 ? 10 : 0))} aria-label="Self-timer">
               <Icon name="timer" size={22} />
               {selfTimer > 0 && <em>{selfTimer}</em>}
             </button>
           )}
           {mode === 'photo' && (
-            <button className={`cam-ico ${showAdjust ? 'on' : ''}`} onClick={() => setShowAdjust((s) => !s)} aria-label="ปรับแสง/สี">
+            <button className={`cam-ico ${showAdjust ? 'on' : ''}`} onClick={() => setShowAdjust((s) => !s)} aria-label="Adjust exposure/color">
               <Icon name="sliders" size={22} />
             </button>
           )}
@@ -475,42 +476,42 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
           <div className="adjust-scrim" onClick={() => setShowAdjust(false)} aria-hidden="true" />
           <div className="adjust-pop glass" role="dialog">
             <div className="adjust-head">
-              <b>ปรับแต่งกล้อง</b>
-              <button className="adjust-reset" onClick={resetAdjust}><Icon name="reset" size={15} /> ค่าเริ่มต้น</button>
+              <b>Camera settings</b>
+              <button className="adjust-reset" onClick={resetAdjust}><Icon name="reset" size={15} /> Reset</button>
             </div>
 
             <label className="adjust">
-              <span><Icon name="sun" size={16} /> แสง <em>{exposure > 0 ? `+${exposure.toFixed(1)}` : exposure.toFixed(1)}</em></span>
+              <span><Icon name="sun" size={16} /> Exposure <em>{exposure > 0 ? `+${exposure.toFixed(1)}` : exposure.toFixed(1)}</em></span>
               <input type="range" min="-2" max="2" step="0.1" value={exposure} onChange={(e) => setExposure(Number(e.target.value))} />
             </label>
             <label className="adjust">
-              <span><Icon name="thermo" size={16} /> อุ่น/เย็น <em>{temp > 0 ? `+${temp}` : temp}</em></span>
+              <span><Icon name="thermo" size={16} /> Warmth <em>{temp > 0 ? `+${temp}` : temp}</em></span>
               <input className="temp-slider" type="range" min="-100" max="100" step="5" value={temp} onChange={(e) => setTemp(Number(e.target.value))} />
             </label>
             <label className="adjust">
-              <span><Icon name="sparkles" size={16} /> แสงรั่ว <em>{leak}%</em></span>
+              <span><Icon name="sparkles" size={16} /> Light leak <em>{leak}%</em></span>
               <input type="range" min="0" max="100" step="5" value={leak} onChange={(e) => setLeak(Number(e.target.value))} />
             </label>
 
             <div className="set-row">
-              <span><Icon name="frame" size={16} /> มุมมอง</span>
+              <span><Icon name="frame" size={16} /> View</span>
               <div className="mini-seg">
-                {[['framed', 'กรอบ'], ['full', 'เต็มจอ']].map(([v, l]) => (
+                {[['framed', 'Framed'], ['full', 'Full']].map(([v, l]) => (
                   <button key={v} className={viewMode === v ? 'on' : ''} onClick={() => setViewMode(v)}>{l}</button>
                 ))}
               </div>
             </div>
             <div className="set-row">
-              <span><Icon name="calendar" size={16} /> วันที่</span>
+              <span><Icon name="calendar" size={16} /> Date</span>
               <div className="mini-seg">
-                {[['auto', 'อัตโนมัติ'], ['on', 'เปิด'], ['off', 'ปิด']].map(([v, l]) => (
+                {[['auto', 'Auto'], ['on', 'On'], ['off', 'Off']].map(([v, l]) => (
                   <button key={v} className={timestamp === v ? 'on' : ''} onClick={() => setTimestamp(v)}>{l}</button>
                 ))}
               </div>
             </div>
             <div className="set-row">
-              <span><Icon name="grid" size={16} /> เส้นกริด</span>
-              <button className={`mini-toggle ${grid ? 'on' : ''}`} onClick={() => setGrid((g) => !g)} aria-label="เส้นกริด"><i /></button>
+              <span><Icon name="grid" size={16} /> Grid</span>
+              <button className={`mini-toggle ${grid ? 'on' : ''}`} onClick={() => setGrid((g) => !g)} aria-label="Grid"><i /></button>
             </div>
           </div>
         </>
@@ -518,16 +519,16 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
 
       {camState !== 'live' && (
         <div className="cam-message">
-          {camState === 'starting' && <><div className="spinner" /><div>กำลังเปิดกล้อง…</div></>}
-          {camState === 'denied' && <><div className="big">🚫</div><div>กล้องถูกปิดกั้น เปิดสิทธิ์กล้องในเบราว์เซอร์ หรือแตะ ▢ เพื่อเลือกจากคลังภาพ</div></>}
-          {camState === 'error' && <><div className="big">📷</div><div>เปิดกล้องในแอปไม่ได้ แตะ ▢ เพื่อเลือกจากคลังภาพแทน</div></>}
+          {camState === 'starting' && <><div className="spinner" /><div>Starting camera…</div></>}
+          {camState === 'denied' && <><div className="big">🚫</div><div>Camera is blocked. Enable camera access in your browser, or tap ▢ to pick from your gallery.</div></>}
+          {camState === 'error' && <><div className="big">📷</div><div>Couldn’t open the camera. Tap ▢ to pick from your gallery instead.</div></>}
         </div>
       )}
 
       {/* Bottom cluster — clean stop button while recording, full controls otherwise */}
       {recording ? (
         <div className="cam-bottom recording">
-          <button className="rec-stop" onClick={stopRecording} aria-label="หยุดอัด">
+          <button className="rec-stop" onClick={stopRecording} aria-label="Stop recording">
             <RecRing progress={Math.min(1, recSecs / MAX_VIDEO_SECS)} />
             <span className="rec-stop-sq" />
           </button>
@@ -545,7 +546,7 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
           )}
 
           <div className="shutter-row">
-            <button className="thumb-btn" onClick={() => fileRef.current?.click()} aria-label="อัปโหลดจากเครื่อง">
+            <button className="thumb-btn" onClick={() => fileRef.current?.click()} aria-label="Upload from device">
               <Icon name="imagePlus" size={24} />
             </button>
             <input ref={fileRef} type="file" accept="image/*,video/*" multiple onChange={onPickFile} hidden />
@@ -553,14 +554,14 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
               className={`shutter ${mode === 'video' ? 'video' : ''}`}
               onClick={onShutter}
               disabled={camState !== 'live' || countdown !== null}
-              aria-label={mode === 'video' ? 'อัดวิดีโอ' : 'ถ่ายรูป'}
+              aria-label={mode === 'video' ? 'Record video' : 'Take photo'}
             />
-            <button className="flip-btn" onClick={() => setFacing((f) => (f === 'user' ? 'environment' : 'user'))} aria-label="สลับกล้อง"><Icon name="refresh" size={24} /></button>
+            <button className="flip-btn" onClick={() => setFacing((f) => (f === 'user' ? 'environment' : 'user'))} aria-label="Flip camera"><Icon name="refresh" size={24} /></button>
           </div>
 
           <div className="mode-switch">
-            <button className={mode === 'photo' ? 'active' : ''} onClick={() => setMode('photo')}>รูป</button>
-            {videoSupported && <button className={mode === 'video' ? 'active' : ''} onClick={() => setMode('video')}>วิดีโอ</button>}
+            <button className={mode === 'photo' ? 'active' : ''} onClick={() => setMode('photo')}>Photo</button>
+            {videoSupported && <button className={mode === 'video' ? 'active' : ''} onClick={() => setMode('video')}>Video</button>}
           </div>
         </div>
       )}

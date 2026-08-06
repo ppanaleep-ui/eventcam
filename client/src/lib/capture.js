@@ -12,7 +12,7 @@ export const ASPECTS = [
   { id: '4:5', label: '645', ratio: 4 / 5 },
   { id: '1:1', label: '6×6', ratio: 1 },
   { id: '9:16', label: 'CINE', ratio: 9 / 16 },
-  { id: 'full', label: 'เต็ม', ratio: null },
+  { id: 'full', label: 'Full', ratio: null },
 ];
 
 export function getAspect(id) {

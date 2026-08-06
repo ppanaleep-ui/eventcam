@@ -9,9 +9,9 @@ import Lightbox from './Lightbox.jsx';
 import Icon from './Icon.jsx';
 
 const FILTERS = [
-  { id: 'all', label: 'ทั้งหมด' },
-  { id: 'photo', label: 'รูป' },
-  { id: 'video', label: 'วิดีโอ' },
+  { id: 'all', label: 'All' },
+  { id: 'photo', label: 'Photos' },
+  { id: 'video', label: 'Videos' },
 ];
 
 export default function Album({ eventId, photos, setPhotos, count, isHost, adminToken, guestName, onDeleted, onUpdate, onUploaded, onToast }) {
@@ -182,7 +182,7 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
     const items = photos.filter((p) => selected.has(p.id));
     if (!items.length) return;
     setSaving(true);
-    onToast?.('กำลังเตรียมไฟล์…');
+    onToast?.('Preparing files…');
     const files = [];
     for (const p of items) {
       try {
@@ -192,14 +192,14 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
       } catch {}
     }
     setSaving(false);
-    if (!files.length) return onToast?.('ดาวน์โหลดไม่สำเร็จ');
+    if (!files.length) return onToast?.('Download failed');
     try {
       if (navigator.canShare && navigator.canShare({ files })) await navigator.share({ files });
       else for (const f of files) await saveToDevice(f, f.name);
-      onToast?.(`บันทึก ${files.length} ไฟล์ลงเครื่อง`);
+      onToast?.(`Saved ${files.length} files to your device`);
       exitSelect();
     } catch (e) {
-      if (e && e.name !== 'AbortError') onToast?.('บันทึกไม่สำเร็จ');
+      if (e && e.name !== 'AbortError') onToast?.('Save failed');
     }
   }
 
@@ -207,8 +207,8 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
   // anything if host). Others in the selection are skipped.
   async function deleteSelected() {
     const items = photos.filter((p) => selected.has(p.id) && (isHost || (p.ownerId && p.ownerId === myGuestId)));
-    if (!items.length) return onToast?.('ลบได้เฉพาะรูปที่คุณอัปโหลด');
-    if (!window.confirm(`ลบ ${items.length} รายการนี้ถาวร?`)) return;
+    if (!items.length) return onToast?.('You can only delete photos you uploaded');
+    if (!window.confirm(`Permanently delete these ${items.length} items?`)) return;
     setSaving(true);
     let ok = 0;
     for (const p of items) {
@@ -219,7 +219,7 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
       } catch {}
     }
     setSaving(false);
-    onToast?.(`ลบแล้ว ${ok}/${items.length} รายการ`);
+    onToast?.(`Deleted ${ok}/${items.length} items`);
     exitSelect();
   }
 
@@ -256,19 +256,19 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
     if (!file) return;
     const refUrl = URL.createObjectURL(file);
     setFaceScan({ done: 0, total: 0, phase: 'model' });
-    onToast?.('กำลังเตรียมระบบค้นหาใบหน้า…');
+    onToast?.('Setting up face search…');
     let ref;
     try {
       ref = await primaryDescriptorForUrl(refUrl);
     } catch {
       setFaceScan(null);
       URL.revokeObjectURL(refUrl);
-      return onToast?.('โหลดระบบค้นหาใบหน้าไม่สำเร็จ');
+      return onToast?.('Couldn’t load face search');
     }
     URL.revokeObjectURL(refUrl);
     if (!ref) {
       setFaceScan(null);
-      return onToast?.('ไม่พบใบหน้าในรูปนี้ ลองรูปที่เห็นหน้าชัด ๆ');
+      return onToast?.('No face found in this photo — try one with a clear face');
     }
 
     const all = await loadAllPhotos();
@@ -287,7 +287,7 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
     setMineOnly(false);
     setFavOnly(false);
     setTypeFilter('all');
-    onToast?.(matches.size ? `พบ ${matches.size} รูปที่มีใบหน้านี้ ✨` : 'ไม่พบรูปที่มีใบหน้านี้');
+    onToast?.(matches.size ? `Found ${matches.size} photos with this face ✨` : 'No photos with this face');
   }
 
   // ---- upload from album ----
@@ -325,12 +325,12 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
       } catch {}
     }
     setUploading('');
-    onToast?.(visible ? `เพิ่ม ${ok}/${files.length} รูปลงอัลบั้มแล้ว ✨` : `เพิ่ม ${ok}/${files.length} รูปแบบส่วนตัวแล้ว 🔒`);
+    onToast?.(visible ? `Added ${ok}/${files.length} to the album ✨` : `Added ${ok}/${files.length} privately 🔒`);
   }
 
   const uploadFab = (
     <>
-      <button className="album-fab" onClick={() => fileRef.current?.click()} aria-label="อัปโหลดรูป">
+      <button className="album-fab" onClick={() => fileRef.current?.click()} aria-label="Upload photos">
         {uploading ? <span className="fab-count">{uploading}</span> : <Icon name="imagePlus" size={26} />}
       </button>
       <input ref={fileRef} type="file" accept="image/*,video/*" multiple onChange={onPickFiles} hidden />
@@ -341,16 +341,16 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
     <div className="up-sheet-scrim" onClick={() => setPendingFiles(null)}>
       <div className="up-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="up-sheet-grip" />
-        <h3>อัปโหลด {pendingFiles.length} รายการ</h3>
-        <p>เลือกได้ว่าจะให้คนอื่นในงานเห็นไหม</p>
+        <h3>Upload {pendingFiles.length} items</h3>
+        <p>Choose whether others at the event can see them.</p>
         <button className={`vis-toggle ${uploadVisible ? '' : 'off'}`} onClick={() => setUploadVisible((v) => !v)}>
           <Icon name={uploadVisible ? 'user' : 'eyeOff'} size={18} />
-          <span>{uploadVisible ? 'ทุกคนในงานเห็นได้' : 'ส่วนตัว (เฉพาะคุณ & เจ้าของงาน)'}</span>
+          <span>{uploadVisible ? 'Everyone can see' : 'Private (only you & the host)'}</span>
           <span className={`switch ${uploadVisible ? 'on' : ''}`} aria-hidden="true"><i /></span>
         </button>
         <div className="up-sheet-actions">
-          <button className="btn ghost" onClick={() => setPendingFiles(null)}>ยกเลิก</button>
-          <button className="btn" onClick={confirmUpload}>อัปโหลด</button>
+          <button className="btn ghost" onClick={() => setPendingFiles(null)}>Cancel</button>
+          <button className="btn" onClick={confirmUpload}>Upload</button>
         </div>
       </div>
     </div>
@@ -361,8 +361,8 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
       <div className="album" ref={albumRef}>
         <div className="empty">
           <div className="empty-ic"><Icon name="images" size={30} /></div>
-          <b>ยังไม่มีรูป</b>
-          <span style={{ color: 'var(--muted)' }}>เป็นคนแรก — ถ่ายจากแท็บกล้อง หรือกดปุ่ม ＋ อัปโหลด</span>
+          <b>No photos yet</b>
+          <span style={{ color: 'var(--muted)' }}>Be the first — shoot from the Camera tab, or tap ＋ to upload</span>
         </div>
         {uploadFab}
         {uploadSheet}
@@ -374,9 +374,9 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
     <div className="album" ref={albumRef}>
       {selectMode ? (
         <div className="album-head select">
-          <button className="link-btn" onClick={exitSelect}>ยกเลิก</button>
-          <span className="album-count">เลือก {selected.size}</span>
-          <button className="link-btn" onClick={() => setSelected(new Set(shown.map((p) => p.id)))}>เลือกทั้งหมด</button>
+          <button className="link-btn" onClick={exitSelect}>Cancel</button>
+          <span className="album-count">{selected.size} selected</span>
+          <button className="link-btn" onClick={() => setSelected(new Set(shown.map((p) => p.id)))}>Select all</button>
         </div>
       ) : (
         <div className="album-head">
@@ -386,13 +386,13 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
             ))}
           </div>
           <div className="album-head-tools">
-            <button className="fav-filter" onClick={() => faceRef.current?.click()} aria-label="ค้นหาด้วยใบหน้า">
-              <Icon name="scanface" size={16} /> หาหน้า
+            <button className="fav-filter" onClick={() => faceRef.current?.click()} aria-label="Search by face">
+              <Icon name="scanface" size={16} /> Faces
             </button>
-            <button className={`fav-filter ${mineOnly ? 'on' : ''}`} onClick={() => setMineOnly((v) => !v)} aria-label="เฉพาะรูปของฉัน">
-              <Icon name="user" size={16} /> ของฉัน
+            <button className={`fav-filter ${mineOnly ? 'on' : ''}`} onClick={() => setMineOnly((v) => !v)} aria-label="Only my photos">
+              <Icon name="user" size={16} /> Mine
             </button>
-            <button className={`fav-filter ${favOnly ? 'on' : ''}`} onClick={() => setFavOnly((v) => !v)} aria-label="รายการโปรด">
+            <button className={`fav-filter ${favOnly ? 'on' : ''}`} onClick={() => setFavOnly((v) => !v)} aria-label="Favorites">
               <Icon name="star" size={16} filled={favOnly} />
             </button>
           </div>
@@ -402,16 +402,16 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
 
       {faceMatchIds && !selectMode && (
         <div className="face-banner">
-          <span><Icon name="scanface" size={16} /> รูปที่มีใบหน้านี้ · {faceMatchIds.size} รูป</span>
-          <button className="link-btn" onClick={() => setFaceMatchIds(null)}>ล้าง</button>
+          <span><Icon name="scanface" size={16} /> Photos with this face · {faceMatchIds.size}</span>
+          <button className="link-btn" onClick={() => setFaceMatchIds(null)}>Clear</button>
         </div>
       )}
 
       {shown.length === 0 ? (
         <div className="empty" style={{ padding: '48px 20px' }}>
           <div className="empty-ic"><Icon name={favOnly ? 'star' : typeFilter === 'video' ? 'video' : 'images'} size={28} /></div>
-          <b>{favOnly ? 'ยังไม่มีรายการโปรด' : 'ยังไม่มีรายการ'}</b>
-          <span style={{ color: 'var(--muted)' }}>{favOnly ? 'แตะรูป แล้วกด ⭐ เพื่อเก็บไว้' : 'ลองเปลี่ยนตัวกรองด้านบน'}</span>
+          <b>{favOnly ? 'No favorites yet' : 'Nothing here yet'}</b>
+          <span style={{ color: 'var(--muted)' }}>{favOnly ? 'Tap a photo, then ⭐ to save it' : 'Try a different filter above'}</span>
         </div>
       ) : (
         <div
@@ -456,7 +456,7 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
       <div ref={sentinel} style={{ height: 1 }} />
       {!favOnly && !mineOnly && typeFilter === 'all' && !done && photos.length < count && (
         <button className="btn secondary" style={{ margin: '14px auto', maxWidth: 240 }} onClick={loadMore} disabled={loadingMore}>
-          {loadingMore ? 'กำลังโหลด…' : 'โหลดเพิ่ม'}
+          {loadingMore ? 'Loading…' : 'Load more'}
         </button>
       )}
 
@@ -466,11 +466,11 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
       {selectMode && selected.size > 0 && (
         <div className="select-bar">
           <button className="btn" onClick={downloadSelected} disabled={saving}>
-            <Icon name="download" size={20} /> {saving ? 'กำลังบันทึก…' : `ดาวน์โหลด ${selected.size}`}
+            <Icon name="download" size={20} /> {saving ? 'Saving…' : `Download ${selected.size}`}
           </button>
           {deletableCount > 0 && (
             <button className="btn danger" onClick={deleteSelected} disabled={saving}>
-              <Icon name="trash" size={19} /> ลบ {deletableCount}
+              <Icon name="trash" size={19} /> Delete {deletableCount}
             </button>
           )}
         </div>
@@ -480,14 +480,17 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
         <div className="face-scan-overlay">
           <div className="face-scan-card">
             <div className="spinner" />
-            <b>{faceScan.phase === 'model' ? 'กำลังเตรียมระบบค้นหาใบหน้า…' : 'กำลังค้นหาใบหน้า…'}</b>
+            <b>{faceScan.phase === 'model' ? 'Setting up face search…' : 'Searching faces…'}</b>
+            {faceScan.phase === 'model' && (
+              <span className="face-scan-hint">The first time takes a little longer — we download the face model to your device once. After that it's quick.</span>
+            )}
             {faceScan.phase === 'scan' && faceScan.total > 0 && (
               <>
-                <span>{faceScan.done} / {faceScan.total} รูป</span>
+                <span>{faceScan.done} / {faceScan.total} photos</span>
                 <div className="face-scan-bar"><div style={{ width: `${Math.round((faceScan.done / faceScan.total) * 100)}%` }} /></div>
               </>
             )}
-            <span className="face-scan-note">ประมวลผลบนเครื่องคุณเอง — ไม่ส่งข้อมูลใบหน้าออกไปไหน</span>
+            <span className="face-scan-note">Runs entirely on your device — face data never leaves your phone.</span>
           </div>
         </div>
       )}

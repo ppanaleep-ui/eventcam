@@ -193,7 +193,7 @@ export default function Event() {
         <header className="topbar">
           <div className="topbar-left">
             {isHost && (
-              <button className="topbar-home" onClick={() => navigate('/')} aria-label="กลับหน้าหลัก" title="กลับหน้าหลัก">
+              <button className="topbar-home" onClick={() => navigate('/')} aria-label="Home" title="Home">
                 <Icon name="home" size={20} />
               </button>
             )}
@@ -201,7 +201,7 @@ export default function Event() {
               <b>{event.name}</b>
               <span>
                 {live && <span className="live-dot" />}
-                {live ? 'สด' : 'กำลังเชื่อมต่อ…'}
+                {live ? 'Live' : 'Connecting…'}
               </span>
             </div>
           </div>
@@ -237,9 +237,9 @@ export default function Event() {
         </div>
 
         <nav className="tabbar glass">
-          <TabBtn active={tab === 'camera'} onClick={() => setTab('camera')} ico="camera" label="กล้อง" />
-          <TabBtn active={tab === 'album'} onClick={() => setTab('album')} ico="images" label="อัลบั้ม" />
-          <TabBtn active={tab === 'invite'} onClick={() => setTab('invite')} ico="qr" label="เชิญ" />
+          <TabBtn active={tab === 'camera'} onClick={() => setTab('camera')} ico="camera" label="Camera" />
+          <TabBtn active={tab === 'album'} onClick={() => setTab('album')} ico="images" label="Album" />
+          <TabBtn active={tab === 'invite'} onClick={() => setTab('invite')} ico="qr" label="Invite" />
         </nav>
       </div>
 

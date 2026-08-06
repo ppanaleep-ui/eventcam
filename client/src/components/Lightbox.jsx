@@ -72,7 +72,7 @@ export default function Lightbox({
       const r = await api.toggleLike(eventId, photo.id);
       onUpdate?.(photo.id, { liked: r.liked, likeCount: r.likeCount });
     } catch {
-      onToast?.('กดถูกใจไม่สำเร็จ');
+      onToast?.('Couldn’t like');
     }
   }
   function onMediaTap() {
@@ -105,7 +105,7 @@ export default function Lightbox({
       setComments((c) => [...c, r.comment]);
       onUpdate?.(photo.id, { commentCount: r.commentCount });
     } catch (err) {
-      onToast?.(err.message || 'ส่งคอมเมนต์ไม่สำเร็จ');
+      onToast?.(err.message || 'Couldn’t post comment');
       setText(t);
     }
   }
@@ -117,21 +117,21 @@ export default function Lightbox({
     try {
       await api.setPhotoVisibility(eventId, photo.id, nextHidden, isHost ? adminToken : undefined);
       onUpdate?.(photo.id, { hidden: nextHidden });
-      onToast?.(nextHidden ? 'ซ่อนจากคนอื่นแล้ว 🔒' : 'เปิดให้ทุกคนเห็นแล้ว ✨');
+      onToast?.(nextHidden ? 'Hidden from others 🔒' : 'Visible to everyone ✨');
     } catch (err) {
-      onToast?.(err.message || 'เปลี่ยนไม่สำเร็จ');
+      onToast?.(err.message || 'Couldn’t update');
     }
   }
   async function remove() {
-    if (!window.confirm(isHost ? 'ลบไฟล์นี้ออกจากทุกเครื่อง?' : 'ลบไฟล์ของคุณ?')) return;
+    if (!window.confirm(isHost ? 'Delete this for everyone?' : 'Delete your file?')) return;
     try {
       await api.deletePhoto(eventId, photo.id, isHost ? adminToken : undefined);
       onDeleted?.(photo.id);
-      onToast?.('ลบแล้ว');
+      onToast?.('Deleted');
       if (photos.length <= 1) onClose();
       else onIndex(Math.min(index, photos.length - 2));
     } catch (err) {
-      onToast?.(err.message || 'ลบไม่สำเร็จ');
+      onToast?.(err.message || 'Couldn’t delete');
     }
   }
   async function save() {
@@ -139,7 +139,7 @@ export default function Lightbox({
       const res = await fetch(photo.url);
       const blob = await res.blob();
       const r = await saveToDevice(blob, `eventcam-${photo.id}.${ext}`);
-      if (r !== 'cancelled') onToast?.('บันทึกแล้ว');
+      if (r !== 'cancelled') onToast?.('Saved');
     } catch {
       window.open(photo.url, '_blank');
     }
@@ -161,39 +161,39 @@ export default function Lightbox({
 
   return (
     <div className="lightbox dazz">
-      <button className="lb-close" onClick={onClose} aria-label="ปิด"><Icon name="close" size={20} /></button>
+      <button className="lb-close" onClick={onClose} aria-label="Close"><Icon name="close" size={20} /></button>
       {filmName && <span className="lb-filmtag">#{filmName}</span>}
 
       <div className="lb-media" onClick={onMediaTap} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-        {index > 0 && <button className="lb-nav left" onClick={(e) => { e.stopPropagation(); go(-1); }} aria-label="ก่อนหน้า">‹</button>}
+        {index > 0 && <button className="lb-nav left" onClick={(e) => { e.stopPropagation(); go(-1); }} aria-label="Previous">‹</button>}
         {isVideo ? <video src={photo.url} controls autoPlay playsInline /> : <img src={photo.url} alt="" />}
-        {index < photos.length - 1 && <button className="lb-nav right" onClick={(e) => { e.stopPropagation(); go(1); }} aria-label="ถัดไป">›</button>}
+        {index < photos.length - 1 && <button className="lb-nav right" onClick={(e) => { e.stopPropagation(); go(1); }} aria-label="Next">›</button>}
         {pop && <div className="heart-pop"><Icon name="heart" size={110} filled /></div>}
         <div className="lb-counter">{index + 1} / {photos.length}</div>
         {photo.guestName && <div className="lb-by">{isVideo ? '🎬' : '📸'} {photo.guestName}</div>}
       </div>
 
       <div className="lb-bar2">
-        <button className="cbtn" onClick={share} aria-label="แชร์"><Icon name="share" size={22} /></button>
+        <button className="cbtn" onClick={share} aria-label="Share"><Icon name="share" size={22} /></button>
         <div className="cbtn-group">
-          <button className={`cbtn ${photo.liked ? 'liked' : ''}`} onClick={() => like(false)} aria-label="ถูกใจ">
+          <button className={`cbtn ${photo.liked ? 'liked' : ''}`} onClick={() => like(false)} aria-label="Like">
             <Icon name="heart" size={24} filled={!!photo.liked} />
             {photo.likeCount > 0 && <em>{photo.likeCount}</em>}
           </button>
-          <button className={`cbtn ${showComments ? 'on' : ''}`} onClick={() => setShowComments((s) => !s)} aria-label="คอมเมนต์">
+          <button className={`cbtn ${showComments ? 'on' : ''}`} onClick={() => setShowComments((s) => !s)} aria-label="Comments">
             <Icon name="comment" size={22} />
             {photo.commentCount > 0 && <em>{photo.commentCount}</em>}
           </button>
-          <button className={`cbtn ${fav ? 'fav' : ''}`} onClick={onFav} aria-label="รายการโปรด"><Icon name="star" size={23} filled={fav} /></button>
+          <button className={`cbtn ${fav ? 'fav' : ''}`} onClick={onFav} aria-label="Favorite"><Icon name="star" size={23} filled={fav} /></button>
           {canManage && (
-            <button className={`cbtn ${photo.hidden ? 'on' : ''}`} onClick={toggleVisibility} aria-label={photo.hidden ? 'เปิดให้คนอื่นเห็น' : 'ซ่อนจากคนอื่น'}>
+            <button className={`cbtn ${photo.hidden ? 'on' : ''}`} onClick={toggleVisibility} aria-label={photo.hidden ? 'Make visible to others' : 'Hide from others'}>
               <Icon name={photo.hidden ? 'eyeOff' : 'user'} size={22} />
             </button>
           )}
-          <button className="cbtn" onClick={save} aria-label="บันทึก"><Icon name="download" size={22} /></button>
+          <button className="cbtn" onClick={save} aria-label="Save"><Icon name="download" size={22} /></button>
         </div>
         {canDelete ? (
-          <button className="cbtn danger" onClick={remove} aria-label="ลบ"><Icon name="trash" size={21} /></button>
+          <button className="cbtn danger" onClick={remove} aria-label="Delete"><Icon name="trash" size={21} /></button>
         ) : (
           <span className="cbtn ghost" aria-hidden="true" />
         )}
@@ -202,18 +202,18 @@ export default function Lightbox({
       {showComments && (
         <div className="lb-comment-sheet" onClick={(e) => e.stopPropagation()}>
           <div className="lb-sheet-head">
-            <b>คอมเมนต์ {photo.commentCount > 0 ? `(${photo.commentCount})` : ''}</b>
-            <button className="link-btn" onClick={() => setShowComments(false)}>ปิด</button>
+            <b>Comments {photo.commentCount > 0 ? `(${photo.commentCount})` : ''}</b>
+            <button className="link-btn" onClick={() => setShowComments(false)}>Close</button>
           </div>
           <div className="lb-comments" ref={listRef}>
-            {comments.length === 0 && <div className="lb-cnote">ยังไม่มีคอมเมนต์ — เป็นคนแรกสิ!</div>}
+            {comments.length === 0 && <div className="lb-cnote">No comments yet — be the first!</div>}
             {comments.map((c) => (
-              <div className="lb-comment" key={c.id}><b>{c.name || 'ผู้ร่วมงาน'}</b> {c.text}</div>
+              <div className="lb-comment" key={c.id}><b>{c.name || 'Guest'}</b> {c.text}</div>
             ))}
           </div>
           <form className="lb-cinput" onSubmit={postComment}>
-            <input type="text" placeholder="เพิ่มคอมเมนต์…" value={text} onChange={(e) => setText(e.target.value)} maxLength={500} autoFocus />
-            <button type="submit" disabled={!text.trim()} aria-label="ส่ง"><Icon name="send" size={20} /></button>
+            <input type="text" placeholder="Add a comment…" value={text} onChange={(e) => setText(e.target.value)} maxLength={500} autoFocus />
+            <button type="submit" disabled={!text.trim()} aria-label="Send"><Icon name="send" size={20} /></button>
           </form>
         </div>
       )}

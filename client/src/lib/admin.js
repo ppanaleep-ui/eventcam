@@ -31,7 +31,7 @@ export function addMyEvent({ id, token, name }) {
   try {
     setAdminToken(id, token);
     const list = getMyEvents().filter((e) => e.id !== id);
-    list.unshift({ id, token, name: name || 'งานของฉัน', createdAt: Date.now() });
+    list.unshift({ id, token, name: name || 'My event', createdAt: Date.now() });
     localStorage.setItem(REGISTRY, JSON.stringify(list.slice(0, 100)));
   } catch {}
 }

@@ -67,22 +67,22 @@ function Dashboard({ user, onLogout }) {
   return (
     <>
       <header className="pc-top">
-        <h1>อีเวนต์ของฉัน</h1>
+        <h1>My events</h1>
         <div className="pc-profile-wrap" ref={menuRef}>
-          <button className="pc-profile" onClick={() => setMenu((m) => !m)} aria-label="บัญชี">
+          <button className="pc-profile" onClick={() => setMenu((m) => !m)} aria-label="Account">
             <Icon name="user" size={20} />
           </button>
           {menu && (
             <div className="pc-menu">
               <div className="pc-menu-head">
-                <b>{user.name || 'บัญชีของฉัน'}</b>
+                <b>{user.name || 'My account'}</b>
                 <span>{user.email}</span>
               </div>
               {user.role === 'owner' && (
-                <Link to="/owner" className="pc-menu-item"><Icon name="shield" size={18} /> อนุมัติสมาชิก</Link>
+                <Link to="/owner" className="pc-menu-item"><Icon name="shield" size={18} /> Approve members</Link>
               )}
-              <Link to="/admin" className="pc-menu-item"><Icon name="images" size={18} /> จัดการอีเวนต์ (QR · ZIP · ลบ)</Link>
-              <button className="pc-menu-item danger" onClick={onLogout}><Icon name="logout" size={18} /> ออกจากระบบ</button>
+              <Link to="/admin" className="pc-menu-item"><Icon name="images" size={18} /> Manage events (QR · ZIP · Delete)</Link>
+              <button className="pc-menu-item danger" onClick={onLogout}><Icon name="logout" size={18} /> Log out</button>
             </div>
           )}
         </div>
@@ -90,13 +90,13 @@ function Dashboard({ user, onLogout }) {
 
       <div className="pc-body">
         {state === 'loading' && <div className="spinner" style={{ margin: '60px auto' }} />}
-        {state === 'error' && <p className="pc-note">โหลดรายการไม่สำเร็จ ลองรีเฟรชอีกครั้ง</p>}
+        {state === 'error' && <p className="pc-note">Couldn’t load your events — try refreshing</p>}
 
         {empty && (
           <div className="pc-aurora">
             <div className="pc-aurora-in">
-              <h2>ยังไม่มีอีเวนต์</h2>
-              <p>สร้างกล้องรวมภาพสำหรับงานของคุณ แล้วให้แขกสแกน QR ถ่ายรูปลงอัลบั้มเดียวกัน 💫</p>
+              <h2>No events yet</h2>
+              <p>Create a shared camera for your event, then let guests scan the QR and shoot into one album 💫</p>
             </div>
           </div>
         )}
@@ -108,7 +108,7 @@ function Dashboard({ user, onLogout }) {
                 <div className="pc-event-thumb"><Icon name="camera" size={22} /></div>
                 <div className="pc-event-info">
                   <b>{e.name}</b>
-                  <span>{e.photoCount} รายการ · แตะเพื่อเปิดงาน</span>
+                  <span>{e.photoCount} items · tap to open</span>
                 </div>
                 <Icon name="chevronRight" size={22} />
               </button>
@@ -120,9 +120,9 @@ function Dashboard({ user, onLogout }) {
       <div className="pc-foot">
         <button className="pc-cta" onClick={() => setCreating(true)}>
           <Icon name="imagePlus" size={22} />
-          {empty ? 'สร้างอีเวนต์แรกของคุณ' : 'สร้างอีเวนต์ใหม่'}
+          {empty ? 'Create your first event' : 'Create new event'}
         </button>
-        <Link to="/admin" className="pc-link">ดูอีเวนต์ทั้งหมด / จัดการงาน</Link>
+        <Link to="/admin" className="pc-link">See all events / manage</Link>
       </div>
 
       {creating && <CreateSheet onClose={() => setCreating(false)} />}
@@ -141,7 +141,7 @@ function CreateSheet({ onClose }) {
     setBusy(true);
     setError('');
     try {
-      const ev = await api.createEvent({ name: name.trim() || 'อีเวนต์ของฉัน' });
+      const ev = await api.createEvent({ name: name.trim() || 'My event' });
       addMyEvent({ id: ev.id, token: ev.adminToken, name: ev.name });
       if (ev.hostName) setGuestName(ev.hostName);
       navigate(`/e/${ev.id}?invite=1`);
@@ -155,19 +155,19 @@ function CreateSheet({ onClose }) {
     <div className="pc-sheet-scrim" onClick={onClose}>
       <form className="pc-sheet" onClick={(e) => e.stopPropagation()} onSubmit={create}>
         <div className="pc-sheet-grip" />
-        <h2>สร้างอีเวนต์ใหม่</h2>
-        <p>ตั้งชื่องาน แล้วเราจะสร้าง QR ให้แขกสแกนเข้าร่วมทันที</p>
+        <h2>Create new event</h2>
+        <p>Name your event and we’ll make a QR for guests to scan and join right away.</p>
         <input
           type="text"
-          placeholder="เช่น งานแต่ง Karntida ♥ Krisada"
+          placeholder="e.g. Karntida ♥ Krisada Wedding"
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={80}
           autoFocus
         />
         {error && <p className="pc-err">{error}</p>}
-        <button className="pc-cta" disabled={busy}>{busy ? 'กำลังสร้าง…' : 'สร้างอีเวนต์'}</button>
-        <button type="button" className="pc-link" onClick={onClose}>ยกเลิก</button>
+        <button className="pc-cta" disabled={busy}>{busy ? 'Creating…' : 'Create event'}</button>
+        <button type="button" className="pc-link" onClick={onClose}>Cancel</button>
       </form>
     </div>
   );
@@ -176,17 +176,17 @@ function CreateSheet({ onClose }) {
 function PendingPanel({ onRefresh, onLogout }) {
   return (
     <div className="pc-body">
-      <header className="pc-top"><h1>รออนุมัติ</h1></header>
+      <header className="pc-top"><h1>Pending approval</h1></header>
       <div className="pc-aurora">
         <div className="pc-aurora-in">
           <div className="pc-pending-ic"><Icon name="clock" size={30} /></div>
-          <h2>บัญชีของคุณกำลังรออนุมัติ</h2>
-          <p>เจ้าของเว็บจะตรวจและอนุมัติบัญชีของคุณเร็ว ๆ นี้ เมื่ออนุมัติแล้วคุณจะสร้างอีเวนต์ได้ทันที</p>
+          <h2>Your account is pending approval</h2>
+          <p>The owner will review and approve your account soon. Once approved, you can create events right away.</p>
         </div>
       </div>
       <div className="pc-foot">
-        <button className="pc-cta" onClick={onRefresh}><Icon name="refresh" size={20} /> เช็กสถานะอีกครั้ง</button>
-        <button className="pc-link" onClick={onLogout}>ออกจากระบบ</button>
+        <button className="pc-cta" onClick={onRefresh}><Icon name="refresh" size={20} /> Check status again</button>
+        <button className="pc-link" onClick={onLogout}>Log out</button>
       </div>
     </div>
   );
