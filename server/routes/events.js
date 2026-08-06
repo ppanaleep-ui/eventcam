@@ -9,6 +9,7 @@ import { storage } from '../storage/index.js';
 import { subscribe, broadcast } from '../sse.js';
 import { ownerId, isHost } from '../eventAuth.js';
 import { requireAuth, requireApproved } from '../auth.js';
+import { toDto } from './photos.js';
 
 const router = Router();
 
@@ -125,6 +126,29 @@ router.delete('/:id/photos/:photoId', async (req, res) => {
 
   broadcast(e.id, 'delete', { id: removed.id });
   res.json({ ok: true, id: removed.id });
+});
+
+// Change a photo's visibility after upload (photo owner or host). Lets someone
+// hide their own upload from everyone else later, or make it public again.
+router.patch('/:id/photos/:photoId/visibility', async (req, res) => {
+  const e = await db().getEvent(req.params.id);
+  if (!e) return res.status(404).json({ error: 'Event not found' });
+
+  const photo = await db().getPhoto(e.id, req.params.photoId);
+  if (!photo) return res.status(404).json({ error: 'Photo not found' });
+
+  const host = isHost(req, e);
+  const owner = !!photo.owner_id && photo.owner_id === ownerId(req);
+  if (!host && !owner) return res.status(403).json({ error: 'Not allowed' });
+
+  const hidden = req.body?.hidden === true || req.body?.hidden === '1' || req.body?.hidden === 'true';
+  await db().setPhotoHidden(e.id, photo.id, hidden);
+
+  const dto = toDto({ ...photo, hidden: hidden ? 1 : 0 });
+  // Tell every viewer: non-owners drop a now-hidden photo; a re-shared photo
+  // pops back into their album. Owner/host keep it (with a hidden badge).
+  broadcast(e.id, 'visibility', dto);
+  res.json(dto);
 });
 
 // Rename an event (host only).

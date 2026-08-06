@@ -173,6 +173,14 @@ export async function createPostgresRepo() {
       }
     },
 
+    async setPhotoHidden(eventId, photoId, hidden) {
+      const { rowCount } = await q(
+        `UPDATE photos SET hidden = $1 WHERE event_id = $2 AND id = $3`,
+        [hidden ? 1 : 0, eventId, photoId]
+      );
+      return rowCount > 0;
+    },
+
     async listAllPhotos(eventId) {
       const { rows } = await q(
         `SELECT * FROM photos WHERE event_id = $1 ORDER BY created_at ASC`,

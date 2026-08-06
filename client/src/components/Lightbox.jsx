@@ -21,7 +21,8 @@ export default function Lightbox({
 }) {
   const photo = photos[index];
   const isVideo = photo?.kind === 'video';
-  const canDelete = !!photo && (isHost || (photo.ownerId && photo.ownerId === myGuestId));
+  const canManage = !!photo && (isHost || (photo.ownerId && photo.ownerId === myGuestId));
+  const canDelete = canManage;
   const ext = isVideo ? guessVideoExt(photo?.url) : 'jpg';
   const filmName = photo?.filter && photo.filter !== 'original' ? getFilm(photo.filter).name : null;
 
@@ -111,6 +112,16 @@ export default function Lightbox({
   function onFav() {
     setFav(toggleFav(eventId, photo.id));
   }
+  async function toggleVisibility() {
+    const nextHidden = !photo.hidden;
+    try {
+      await api.setPhotoVisibility(eventId, photo.id, nextHidden, isHost ? adminToken : undefined);
+      onUpdate?.(photo.id, { hidden: nextHidden });
+      onToast?.(nextHidden ? 'ซ่อนจากคนอื่นแล้ว 🔒' : 'เปิดให้ทุกคนเห็นแล้ว ✨');
+    } catch (err) {
+      onToast?.(err.message || 'เปลี่ยนไม่สำเร็จ');
+    }
+  }
   async function remove() {
     if (!window.confirm(isHost ? 'ลบไฟล์นี้ออกจากทุกเครื่อง?' : 'ลบไฟล์ของคุณ?')) return;
     try {
@@ -174,6 +185,11 @@ export default function Lightbox({
             {photo.commentCount > 0 && <em>{photo.commentCount}</em>}
           </button>
           <button className={`cbtn ${fav ? 'fav' : ''}`} onClick={onFav} aria-label="รายการโปรด"><Icon name="star" size={23} filled={fav} /></button>
+          {canManage && (
+            <button className={`cbtn ${photo.hidden ? 'on' : ''}`} onClick={toggleVisibility} aria-label={photo.hidden ? 'เปิดให้คนอื่นเห็น' : 'ซ่อนจากคนอื่น'}>
+              <Icon name={photo.hidden ? 'eyeOff' : 'user'} size={22} />
+            </button>
+          )}
           <button className="cbtn" onClick={save} aria-label="บันทึก"><Icon name="download" size={22} /></button>
         </div>
         {canDelete ? (

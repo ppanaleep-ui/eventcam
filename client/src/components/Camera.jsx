@@ -63,9 +63,11 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
     const i = zoomStops.indexOf(z);
     return zoomStops[(i + 1) % zoomStops.length] ?? 1;
   });
-  // Digital zoom (used only when the device has no HW zoom track).
+  // Digital zoom (used only when the device has no HW zoom track). We do NOT
+  // mirror the front camera — the preview then matches the saved photo exactly
+  // (no surprise left-right flip between what you see and what's uploaded).
   const digitalScale = !hwZoomRef.current && zoom > 1 ? zoom : 1;
-  const camTransform = `${facing === 'user' ? 'scaleX(-1) ' : ''}${digitalScale > 1 ? `scale(${digitalScale})` : ''}`.trim() || undefined;
+  const camTransform = digitalScale > 1 ? `scale(${digitalScale})` : undefined;
 
   // Drive the real lens when we have a HW zoom track.
   useEffect(() => {

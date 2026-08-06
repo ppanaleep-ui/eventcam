@@ -1870,10 +1870,12 @@ body.immersive .event { height: 100dvh; }
   bottom: calc(72px + var(--safe-bottom));
   display: flex;
   justify-content: center;
+  gap: 10px;
   padding: 0 16px;
   z-index: 40;
   pointer-events: none;
 }
+.album-head-tools { display: inline-flex; align-items: center; gap: 8px; }
 .select-bar .btn {
   max-width: 420px;
   width: auto;

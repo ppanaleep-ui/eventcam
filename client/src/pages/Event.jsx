@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
-import { getGuestName } from '../lib/guest.js';
+import { getGuestName, getGuestId } from '../lib/guest.js';
 import { getAdminToken } from '../lib/admin.js';
 import Camera from '../components/Camera.jsx';
 import Album from '../components/Album.jsx';
@@ -140,6 +140,19 @@ export default function Event() {
         updatePhoto(id, { commentCount });
       } catch {}
     });
+    es.addEventListener('visibility', (e) => {
+      try {
+        const dto = JSON.parse(e.data);
+        const mine = dto.ownerId && dto.ownerId === getGuestId();
+        if (dto.hidden && !mine && !isHost) {
+          removePhoto(dto.id); // no longer visible to this viewer
+        } else {
+          // owner/host keep it (badge updates); a re-shared photo pops back in
+          updatePhoto(dto.id, { hidden: dto.hidden });
+          addPhoto(dto);
+        }
+      } catch {}
+    });
     es.onerror = () => {
       setLive(false);
       startPolling();
@@ -149,7 +162,7 @@ export default function Event() {
       es.close();
       stopPolling();
     };
-  }, [id, status, addPhoto, removePhoto, updatePhoto]);
+  }, [id, status, addPhoto, removePhoto, updatePhoto, isHost]);
 
   if (status === 'loading') {
     return (

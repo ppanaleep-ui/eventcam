@@ -165,6 +165,11 @@ export function createSqliteRepo() {
       })();
     },
 
+    async setPhotoHidden(eventId, photoId, hidden) {
+      const info = db.prepare(`UPDATE photos SET hidden = ? WHERE event_id = ? AND id = ?`).run(hidden ? 1 : 0, eventId, photoId);
+      return info.changes > 0;
+    },
+
     async listAllPhotos(eventId) {
       return stmts.listAll.all(eventId);
     },

@@ -18,6 +18,7 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
   const [loadingMore, setLoadingMore] = useState(false);
   const [done, setDone] = useState(false);
   const [favOnly, setFavOnly] = useState(false);
+  const [mineOnly, setMineOnly] = useState(false);
   const [typeFilter, setTypeFilter] = useState('all');
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState(() => new Set());
@@ -35,9 +36,13 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
   const startPt = useRef({ x: 0, y: 0 });
   const touchBlock = useRef(null);
 
+  const myGuestId = getGuestId();
   const favs = favSet(eventId);
   const shown = photos.filter(
-    (p) => (typeFilter === 'all' || p.kind === typeFilter || (typeFilter === 'photo' && !p.kind)) && (!favOnly || favs.has(p.id))
+    (p) =>
+      (typeFilter === 'all' || p.kind === typeFilter || (typeFilter === 'photo' && !p.kind)) &&
+      (!favOnly || favs.has(p.id)) &&
+      (!mineOnly || (p.ownerId && p.ownerId === myGuestId))
   );
 
   const loadMore = useCallback(async () => {
@@ -60,11 +65,11 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
 
   useEffect(() => {
     const el = sentinel.current;
-    if (!el || favOnly || typeFilter !== 'all') return;
+    if (!el || favOnly || mineOnly || typeFilter !== 'all') return;
     const io = new IntersectionObserver((e) => e[0].isIntersecting && loadMore(), { rootMargin: '400px' });
     io.observe(el);
     return () => io.disconnect();
-  }, [loadMore, favOnly, typeFilter]);
+  }, [loadMore, favOnly, mineOnly, typeFilter]);
 
   useEffect(() => () => clearInterval(edgeTimer.current), []);
 
@@ -193,6 +198,32 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
     }
   }
 
+  // Delete the selected items the viewer is allowed to remove (own uploads, or
+  // anything if host). Others in the selection are skipped.
+  async function deleteSelected() {
+    const items = photos.filter((p) => selected.has(p.id) && (isHost || (p.ownerId && p.ownerId === myGuestId)));
+    if (!items.length) return onToast?.('ลบได้เฉพาะรูปที่คุณอัปโหลด');
+    if (!window.confirm(`ลบ ${items.length} รายการนี้ถาวร?`)) return;
+    setSaving(true);
+    let ok = 0;
+    for (const p of items) {
+      try {
+        await api.deletePhoto(eventId, p.id, isHost ? adminToken : undefined);
+        onDeleted?.(p.id);
+        ok++;
+      } catch {}
+    }
+    setSaving(false);
+    onToast?.(`ลบแล้ว ${ok}/${items.length} รายการ`);
+    exitSelect();
+  }
+
+  // Count of the current selection the viewer can delete (drives the button).
+  const deletableCount = photos.reduce(
+    (n, p) => n + (selected.has(p.id) && (isHost || (p.ownerId && p.ownerId === myGuestId)) ? 1 : 0),
+    0
+  );
+
   // ---- upload from album ----
   // Step 1: pick files, then show a confirm sheet where the uploader chooses
   // (at the moment of confirming, per upload) whether others may see them.
@@ -288,9 +319,14 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
               <button key={f.id} className={typeFilter === f.id ? 'on' : ''} onClick={() => setTypeFilter(f.id)}>{f.label}</button>
             ))}
           </div>
-          <button className={`fav-filter ${favOnly ? 'on' : ''}`} onClick={() => setFavOnly((v) => !v)} aria-label="รายการโปรด">
-            <Icon name="star" size={16} filled={favOnly} />
-          </button>
+          <div className="album-head-tools">
+            <button className={`fav-filter ${mineOnly ? 'on' : ''}`} onClick={() => setMineOnly((v) => !v)} aria-label="เฉพาะรูปของฉัน">
+              <Icon name="user" size={16} /> ของฉัน
+            </button>
+            <button className={`fav-filter ${favOnly ? 'on' : ''}`} onClick={() => setFavOnly((v) => !v)} aria-label="รายการโปรด">
+              <Icon name="star" size={16} filled={favOnly} />
+            </button>
+          </div>
         </div>
       )}
 
@@ -341,7 +377,7 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
       )}
 
       <div ref={sentinel} style={{ height: 1 }} />
-      {!favOnly && typeFilter === 'all' && !done && photos.length < count && (
+      {!favOnly && !mineOnly && typeFilter === 'all' && !done && photos.length < count && (
         <button className="btn secondary" style={{ margin: '14px auto', maxWidth: 240 }} onClick={loadMore} disabled={loadingMore}>
           {loadingMore ? 'กำลังโหลด…' : 'โหลดเพิ่ม'}
         </button>
@@ -353,8 +389,13 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
       {selectMode && selected.size > 0 && (
         <div className="select-bar">
           <button className="btn" onClick={downloadSelected} disabled={saving}>
-            <Icon name="download" size={20} /> {saving ? 'กำลังบันทึก…' : `ดาวน์โหลด ${selected.size} รายการ`}
+            <Icon name="download" size={20} /> {saving ? 'กำลังบันทึก…' : `ดาวน์โหลด ${selected.size}`}
           </button>
+          {deletableCount > 0 && (
+            <button className="btn danger" onClick={deleteSelected} disabled={saving}>
+              <Icon name="trash" size={19} /> ลบ {deletableCount}
+            </button>
+          )}
         </div>
       )}
 

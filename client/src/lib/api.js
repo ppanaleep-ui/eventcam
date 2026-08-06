@@ -93,6 +93,16 @@ export const api = {
     return fetch(`/api/events/${id}/photos/${photoId}`, { method: 'DELETE', headers }).then(json);
   },
 
+  setPhotoVisibility(id, photoId, hidden, token) {
+    const headers = { 'Content-Type': 'application/json', 'x-guest-id': getGuestId() };
+    if (token) headers['x-admin-token'] = token;
+    return fetch(`/api/events/${id}/photos/${photoId}/visibility`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ hidden }),
+    }).then(json);
+  },
+
   // ---- Host-only ----
   renameEvent(id, name, token) {
     return fetch(`/api/events/${id}`, {
