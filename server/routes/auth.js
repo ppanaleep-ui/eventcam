@@ -64,6 +64,7 @@ router.post('/login', authLimiter, async (req, res) => {
   }
   // Self-heal: if the owner email registered before it was configured.
   if (config.ownerEmail && email === config.ownerEmail && user.role !== 'owner') {
+    await db().setUserRole?.(user.id, 'owner');
     await db().setUserStatus(user.id, 'approved');
     user.role = 'owner';
     user.status = 'approved';

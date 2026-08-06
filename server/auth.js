@@ -44,7 +44,20 @@ export async function authOptional(req, res, next) {
     if (token) {
       const { uid } = jwt.verify(token, secret);
       const user = await db().getUserById(uid);
-      if (user) req.user = user;
+      if (user) {
+        // Self-heal the owner: whoever holds the configured owner email is
+        // always the owner, even if their row was created before OWNER_EMAIL
+        // was set (or with an older role). Persist so every request agrees.
+        if (config.ownerEmail && user.email === config.ownerEmail && (user.role !== 'owner' || user.status !== 'approved')) {
+          user.role = 'owner';
+          user.status = 'approved';
+          try {
+            await db().setUserRole?.(user.id, 'owner');
+            await db().setUserStatus(user.id, 'approved');
+          } catch { /* best-effort heal */ }
+        }
+        req.user = user;
+      }
     }
   } catch {
     /* invalid / expired token → treated as logged out */

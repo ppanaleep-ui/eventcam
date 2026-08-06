@@ -2172,26 +2172,31 @@ body.immersive .event { height: 100dvh; }
 }
 .album-fab:active { transform: scale(0.93); }
 .album-fab .fab-count { font-size: 14px; font-weight: 800; }
-.upload-vis {
+/* Album upload confirm sheet — choose visibility at the moment of uploading */
+.up-sheet-scrim {
   position: fixed;
-  right: 16px;
-  bottom: calc(142px + var(--safe-bottom));
-  z-index: 30;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 13px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: var(--bg-2);
-  color: var(--text);
-  font-size: 12.5px;
-  font-weight: 700;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  inset: 0;
+  z-index: 40;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: flex-end;
 }
-.upload-vis svg { color: var(--accent-strong); }
-.upload-vis.off { background: #2b2b31; color: #f0dede; border-color: #3a3a42; }
-.upload-vis.off svg { color: #ff9db0; }
+.up-sheet {
+  width: 100%;
+  border-radius: 24px 24px 0 0;
+  padding: 12px 20px calc(22px + var(--safe-bottom));
+  background: #141418;
+  border: 1px solid #232329;
+  color: #f4f4f5;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.up-sheet-grip { width: 40px; height: 4px; border-radius: 999px; background: #3a3a42; margin: 2px auto 6px; }
+.up-sheet h3 { font-size: 18px; font-weight: 800; }
+.up-sheet p { color: #b9b9c0; font-size: 13.5px; }
+.up-sheet-actions { display: flex; gap: 10px; margin-top: 2px; }
+.up-sheet-actions .btn { flex: 1; }
 
 /* ==================== PartyCam-style events dashboard ==================== */
 .pc {

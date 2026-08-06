@@ -23,7 +23,8 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
   const [selected, setSelected] = useState(() => new Set());
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState('');
-  const [uploadVisible, setUploadVisible] = useState(true); // let others see uploads?
+  const [pendingFiles, setPendingFiles] = useState(null); // files picked, awaiting confirm
+  const [uploadVisible, setUploadVisible] = useState(true); // let others see this upload?
   const sentinel = useRef(null);
   const pressTimer = useRef(null);
   const suppressClick = useRef(false);
@@ -193,10 +194,22 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
   }
 
   // ---- upload from album ----
-  async function onAlbumUpload(e) {
+  // Step 1: pick files, then show a confirm sheet where the uploader chooses
+  // (at the moment of confirming, per upload) whether others may see them.
+  function onPickFiles(e) {
     const files = [...(e.target.files || [])];
     e.target.value = '';
     if (!files.length) return;
+    setUploadVisible(true); // default: everyone can see (can turn off each time)
+    setPendingFiles(files);
+  }
+
+  // Step 2: confirm — do the actual uploads with the chosen visibility.
+  async function confirmUpload() {
+    const files = pendingFiles || [];
+    setPendingFiles(null);
+    if (!files.length) return;
+    const visible = uploadVisible;
     const orig = getFilm('original');
     let ok = 0;
     for (let i = 0; i < files.length; i++) {
@@ -204,35 +217,46 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
       setUploading(`${i + 1}/${files.length}`);
       try {
         if (f.type.startsWith('video/')) {
-          const dto = await api.uploadMedia(eventId, { full: f, guestName, kind: 'video', hidden: !uploadVisible });
+          const dto = await api.uploadMedia(eventId, { full: f, guestName, kind: 'video', hidden: !visible });
           onUploaded?.(dto);
         } else {
           const r = await produceFromImageFile(f, orig, { temp: 0, exposure: 0 });
-          const dto = await api.uploadMedia(eventId, { full: r.fullBlob, thumb: r.thumbBlob, guestName, kind: 'photo', filter: 'original', width: r.width, height: r.height, hidden: !uploadVisible });
+          const dto = await api.uploadMedia(eventId, { full: r.fullBlob, thumb: r.thumbBlob, guestName, kind: 'photo', filter: 'original', width: r.width, height: r.height, hidden: !visible });
           onUploaded?.(dto);
         }
         ok++;
       } catch {}
     }
     setUploading('');
-    onToast?.(uploadVisible ? `เพิ่ม ${ok}/${files.length} รูปลงอัลบั้มแล้ว ✨` : `เพิ่ม ${ok}/${files.length} รูปแบบส่วนตัวแล้ว 🔒`);
+    onToast?.(visible ? `เพิ่ม ${ok}/${files.length} รูปลงอัลบั้มแล้ว ✨` : `เพิ่ม ${ok}/${files.length} รูปแบบส่วนตัวแล้ว 🔒`);
   }
 
   const uploadFab = (
     <>
-      <button
-        className={`upload-vis ${uploadVisible ? '' : 'off'}`}
-        onClick={() => setUploadVisible((v) => !v)}
-        aria-label="ตั้งค่าการมองเห็นของรูปที่อัปโหลด"
-      >
-        <Icon name={uploadVisible ? 'user' : 'eyeOff'} size={15} />
-        {uploadVisible ? 'ทุกคนเห็นได้' : 'ส่วนตัว'}
-      </button>
       <button className="album-fab" onClick={() => fileRef.current?.click()} aria-label="อัปโหลดรูป">
         {uploading ? <span className="fab-count">{uploading}</span> : <Icon name="imagePlus" size={26} />}
       </button>
-      <input ref={fileRef} type="file" accept="image/*,video/*" multiple onChange={onAlbumUpload} hidden />
+      <input ref={fileRef} type="file" accept="image/*,video/*" multiple onChange={onPickFiles} hidden />
     </>
+  );
+
+  const uploadSheet = pendingFiles && (
+    <div className="up-sheet-scrim" onClick={() => setPendingFiles(null)}>
+      <div className="up-sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="up-sheet-grip" />
+        <h3>อัปโหลด {pendingFiles.length} รายการ</h3>
+        <p>เลือกได้ว่าจะให้คนอื่นในงานเห็นไหม</p>
+        <button className={`vis-toggle ${uploadVisible ? '' : 'off'}`} onClick={() => setUploadVisible((v) => !v)}>
+          <Icon name={uploadVisible ? 'user' : 'eyeOff'} size={18} />
+          <span>{uploadVisible ? 'ทุกคนในงานเห็นได้' : 'ส่วนตัว (เฉพาะคุณ & เจ้าของงาน)'}</span>
+          <span className={`switch ${uploadVisible ? 'on' : ''}`} aria-hidden="true"><i /></span>
+        </button>
+        <div className="up-sheet-actions">
+          <button className="btn ghost" onClick={() => setPendingFiles(null)}>ยกเลิก</button>
+          <button className="btn" onClick={confirmUpload}>อัปโหลด</button>
+        </div>
+      </div>
+    </div>
   );
 
   if (photos.length === 0) {
@@ -244,6 +268,7 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
           <span style={{ color: 'var(--muted)' }}>เป็นคนแรก — ถ่ายจากแท็บกล้อง หรือกดปุ่ม ＋ อัปโหลด</span>
         </div>
         {uploadFab}
+        {uploadSheet}
       </div>
     );
   }
@@ -323,6 +348,7 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
       )}
 
       {!selectMode && uploadFab}
+      {uploadSheet}
 
       {selectMode && selected.size > 0 && (
         <div className="select-bar">

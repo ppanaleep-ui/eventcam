@@ -202,6 +202,9 @@ export function createSqliteRepo() {
     async setUserStatus(id, status) {
       db.prepare(`UPDATE users SET status = ? WHERE id = ?`).run(status, id);
     },
+    async setUserRole(id, role) {
+      db.prepare(`UPDATE users SET role = ? WHERE id = ?`).run(role, id);
+    },
 
     // ---- likes / comments ----
     async toggleLike(photoId, guestId) {

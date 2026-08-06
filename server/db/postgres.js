@@ -220,6 +220,9 @@ export async function createPostgresRepo() {
     async setUserStatus(id, status) {
       await q(`UPDATE users SET status = $1 WHERE id = $2`, [status, id]);
     },
+    async setUserRole(id, role) {
+      await q(`UPDATE users SET role = $1 WHERE id = $2`, [role, id]);
+    },
 
     // ---- likes / comments ----
     async toggleLike(photoId, guestId) {
