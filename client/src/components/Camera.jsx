@@ -50,6 +50,9 @@ export default function Camera({ eventId, guestName, defaultFilter, onUploaded, 
   const [zoom, setZoom] = useState(1);
   const [zoomStops, setZoomStops] = useState([1, 2]);
   const [regrading, setRegrading] = useState(false); // re-applying a film in review
+  const [batch, setBatch] = useState(null); // files picked for bulk upload, awaiting confirm
+  const [batchFilter, setBatchFilter] = useState('original');
+  const [batchVisible, setBatchVisible] = useState(true);
   const hwZoomRef = useRef(false); // camera exposes an optical/HW zoom track
 
   const film = getFilm(filmId);
@@ -303,9 +306,10 @@ export default function Camera({ eventId, guestName, defaultFilter, onUploaded, 
     return base.includes('webm') ? 'webm' : base.includes('quicktime') ? 'mov' : 'mp4';
   }
 
-  // Upload many files at once (picked from the gallery) without a per-file review.
-  async function batchUpload(files) {
-    const orig = getFilm('original');
+  // Upload many files at once (picked from the gallery), applying the chosen
+  // film + visibility from the confirm sheet.
+  async function batchUpload(files, filmId, vis) {
+    const chosen = getFilm(filmId || 'original');
     let ok = 0;
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
@@ -313,11 +317,11 @@ export default function Camera({ eventId, guestName, defaultFilter, onUploaded, 
       onToast?.(`Uploading ${i + 1}/${files.length}…`);
       try {
         if (f.type.startsWith('video/')) {
-          const dto = await api.uploadMedia(eventId, { full: f, guestName, kind: 'video', hidden: !visible });
+          const dto = await api.uploadMedia(eventId, { full: f, guestName, kind: 'video', hidden: !vis });
           onUploaded?.(dto);
         } else {
-          const r = await produceFromImageFile(f, orig, { temp: 0, exposure: 0 });
-          const dto = await api.uploadMedia(eventId, { full: r.fullBlob, thumb: r.thumbBlob, guestName, kind: 'photo', filter: 'original', width: r.width, height: r.height, hidden: !visible });
+          const r = await produceFromImageFile(f, chosen, { temp: 0, exposure: 0 });
+          const dto = await api.uploadMedia(eventId, { full: r.fullBlob, thumb: r.thumbBlob, guestName, kind: 'photo', filter: chosen.id, width: r.width, height: r.height, hidden: !vis });
           onUploaded?.(dto);
         }
         ok++;
@@ -326,7 +330,13 @@ export default function Camera({ eventId, guestName, defaultFilter, onUploaded, 
       }
     }
     setProgress(null);
-    onToast?.(`Added ${ok}/${files.length} to the album ✨`);
+    onToast?.(vis ? `Added ${ok}/${files.length} to the album ✨` : `Added ${ok}/${files.length} privately 🔒`);
+  }
+
+  async function confirmBatch() {
+    const files = batch;
+    setBatch(null);
+    if (files && files.length) await batchUpload(files, batchFilter, batchVisible);
   }
 
   async function onPickFile(e) {
@@ -334,8 +344,11 @@ export default function Camera({ eventId, guestName, defaultFilter, onUploaded, 
     e.target.value = '';
     if (!files.length) return;
 
+    // Multiple files → confirm sheet (film + visibility) before uploading.
     if (files.length > 1) {
-      await batchUpload(files);
+      setBatchFilter('original');
+      setBatchVisible(true);
+      setBatch(files);
       return;
     }
 
@@ -590,6 +603,32 @@ export default function Camera({ eventId, guestName, defaultFilter, onUploaded, 
           <div className="mode-switch">
             <button className={mode === 'photo' ? 'active' : ''} onClick={() => setMode('photo')}>Photo</button>
             {videoSupported && <button className={mode === 'video' ? 'active' : ''} onClick={() => setMode('video')}>Video</button>}
+          </div>
+        </div>
+      )}
+
+      {batch && (
+        <div className="up-sheet-scrim" onClick={() => setBatch(null)}>
+          <div className="up-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="up-sheet-grip" />
+            <h3>Upload {batch.length} items</h3>
+            <p>Pick a film and choose whether others can see them.</p>
+            <div className="up-films">
+              {FILMS.map((f) => (
+                <button key={f.id} className={`film-chip ${batchFilter === f.id ? 'active' : ''}`} onClick={() => setBatchFilter(f.id)}>
+                  {f.name}
+                </button>
+              ))}
+            </div>
+            <button className={`vis-toggle ${batchVisible ? '' : 'off'}`} onClick={() => setBatchVisible((v) => !v)}>
+              <Icon name={batchVisible ? 'user' : 'eyeOff'} size={18} />
+              <span>{batchVisible ? 'Everyone can see' : 'Private (only you & the host)'}</span>
+              <span className={`switch ${batchVisible ? 'on' : ''}`} aria-hidden="true"><i /></span>
+            </button>
+            <div className="up-sheet-actions">
+              <button className="btn ghost" onClick={() => setBatch(null)}>Cancel</button>
+              <button className="btn" onClick={confirmBatch}>Upload</button>
+            </div>
           </div>
         </div>
       )}
