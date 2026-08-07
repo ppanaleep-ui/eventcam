@@ -1,0 +1,14 @@
+node_modules
+**/node_modules
+client/dist
+data
+.git
+.gitignore
+*.log
+.env
+.env.*
+!.env.example
+scripts
+README.md
+SCALING.md
+DEPLOY.md
