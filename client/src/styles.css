@@ -2004,15 +2004,32 @@ body.immersive .event { height: 100dvh; }
 .album-head .seg-filter { flex-shrink: 0; }
 .album-head-tools { flex-shrink: 0; margin-left: auto; gap: 6px; }
 .select-bar .btn {
-  max-width: 420px;
-  width: auto;
-  padding: 14px 26px;
+  flex: 1 1 0;
+  max-width: 230px;
+  min-width: 0;
+  height: 52px;
+  padding: 0 18px;
+  border-radius: 16px;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.4);
+  font-size: 15px;
+  font-weight: 800;
+  border: none;
+  box-shadow: none;
   pointer-events: auto;
 }
+.select-bar .btn:not(.danger) {
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: 0 6px 18px rgba(223, 175, 189, 0.28);
+}
+.select-bar .btn.danger {
+  background: rgba(176, 74, 92, 0.18);
+  color: #ff9aad;
+}
+.select-bar .btn.danger:active { background: rgba(176, 74, 92, 0.28); }
 
 /* Dazz-style temperature slider (cool blue → warm orange) */
 .adjust input.temp-slider {
