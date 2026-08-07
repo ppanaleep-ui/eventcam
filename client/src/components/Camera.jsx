@@ -17,7 +17,7 @@ function pickVideoMime() {
   return '';
 }
 
-export default function Camera({ eventId, guestName, defaultFilter, onUploaded, onToast }) {
+export default function Camera({ eventId, eventName, guestName, defaultFilter, onUploaded, onToast }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const recorderRef = useRef(null);
@@ -45,7 +45,7 @@ export default function Camera({ eventId, guestName, defaultFilter, onUploaded, 
   const [timestamp, setTimestamp] = useState('auto'); // auto | on | off
   const [grid, setGrid] = useState(false); // extra grid in full-screen view
   const [lowLight, setLowLight] = useState(false);
-  const [viewMode, setViewMode] = useState('framed'); // framed (viewfinder) | full
+  const [viewMode, setViewMode] = useState('full'); // full (max preview) | framed (viewfinder)
   const [fs, setFs] = useState(false); // immersive full-screen (no browser chrome)
   const [zoom, setZoom] = useState(1);
   const [zoomStops, setZoomStops] = useState([1, 2]);
@@ -109,7 +109,7 @@ export default function Camera({ eventId, guestName, defaultFilter, onUploaded, 
     setTimestamp('auto');
     setGrid(false);
     setSelfTimer(0);
-    setViewMode('framed');
+    setViewMode('full');
     setAspectId('2:3');
     onToast?.('Reset to defaults');
   }
@@ -492,6 +492,7 @@ export default function Camera({ eventId, guestName, defaultFilter, onUploaded, 
         <button className="cam-pill" onClick={cycleAspect} aria-label="Aspect ratio">
           {aspect.label}
         </button>
+        {eventName && <span className="cam-title">{eventName}</span>}
         <div className="cam-top-right">
           <button className="cam-ico" onClick={toggleFullscreen} aria-label={fs ? 'Exit full screen' : 'Full screen'}>
             <Icon name={fs ? 'shrink' : 'expand'} size={21} />

@@ -198,6 +198,7 @@ export default function Event() {
   return (
     <div className="app">
       <div className="event">
+        {activeTab !== 'camera' && (
         <header className="topbar">
           <div className="topbar-left">
             {isHost && (
@@ -215,10 +216,11 @@ export default function Event() {
           </div>
           <div className="count-pill"><Icon name="images" size={15} /> {count}</div>
         </header>
+        )}
 
         <div className="tab-body" key={activeTab}>
           {activeTab === 'camera' && (
-            <Camera eventId={id} guestName={guest} defaultFilter={event.defaultFilter} onUploaded={addPhoto} onToast={showToast} />
+            <Camera eventId={id} eventName={event.name} guestName={guest} defaultFilter={event.defaultFilter} onUploaded={addPhoto} onToast={showToast} />
           )}
           {activeTab === 'album' && (
             <div className="tab-anim">

@@ -1407,6 +1407,22 @@ body.immersive .event { height: 100dvh; }
   z-index: 5;
 }
 .cam-top-right { display: flex; gap: 12px; }
+.cam-title {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 46%;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
 .cam-pill {
   background: rgba(0, 0, 0, 0.35);
   -webkit-backdrop-filter: blur(8px);
