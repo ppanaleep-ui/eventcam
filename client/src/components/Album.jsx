@@ -3,7 +3,7 @@ import { api } from '../lib/api.js';
 import { getGuestId } from '../lib/guest.js';
 import { favSet } from '../lib/favorites.js';
 import { saveToDevice, produceFromImageFile } from '../lib/capture.js';
-import { getFilm } from '../lib/filters.js';
+import { getFilm, FILMS } from '../lib/filters.js';
 import { primaryDescriptorForUrl, cachedDescriptors, distance, MATCH_THRESHOLD } from '../lib/faces.js';
 import Lightbox from './Lightbox.jsx';
 import Icon from './Icon.jsx';
@@ -27,6 +27,7 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
   const [uploading, setUploading] = useState('');
   const [pendingFiles, setPendingFiles] = useState(null); // files picked, awaiting confirm
   const [uploadVisible, setUploadVisible] = useState(true); // let others see this upload?
+  const [uploadFilter, setUploadFilter] = useState('original'); // film to apply to uploads
   const [faceScan, setFaceScan] = useState(null); // {done,total} while searching
   const [faceMatchIds, setFaceMatchIds] = useState(null); // Set of matching ids | null
   const faceRef = useRef(null);
@@ -313,6 +314,7 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
     e.target.value = '';
     if (!files.length) return;
     setUploadVisible(true); // default: everyone can see (can turn off each time)
+    setUploadFilter('original');
     setPendingFiles(files);
   }
 
@@ -322,7 +324,7 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
     setPendingFiles(null);
     if (!files.length) return;
     const visible = uploadVisible;
-    const orig = getFilm('original');
+    const film = getFilm(uploadFilter);
     let ok = 0;
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
@@ -332,8 +334,8 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
           const dto = await api.uploadMedia(eventId, { full: f, guestName, kind: 'video', hidden: !visible });
           onUploaded?.(dto);
         } else {
-          const r = await produceFromImageFile(f, orig, { temp: 0, exposure: 0 });
-          const dto = await api.uploadMedia(eventId, { full: r.fullBlob, thumb: r.thumbBlob, guestName, kind: 'photo', filter: 'original', width: r.width, height: r.height, hidden: !visible });
+          const r = await produceFromImageFile(f, film, { temp: 0, exposure: 0 });
+          const dto = await api.uploadMedia(eventId, { full: r.fullBlob, thumb: r.thumbBlob, guestName, kind: 'photo', filter: film.id, width: r.width, height: r.height, hidden: !visible });
           onUploaded?.(dto);
         }
         ok++;
@@ -357,7 +359,18 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
       <div className="up-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="up-sheet-grip" />
         <h3>Upload {pendingFiles.length} items</h3>
-        <p>Choose whether others at the event can see them.</p>
+        <p>Pick a film and choose whether others can see them.</p>
+        <div className="up-films">
+          {FILMS.map((f) => (
+            <button
+              key={f.id}
+              className={`film-chip ${uploadFilter === f.id ? 'active' : ''}`}
+              onClick={() => setUploadFilter(f.id)}
+            >
+              {f.name}
+            </button>
+          ))}
+        </div>
         <button className={`vis-toggle ${uploadVisible ? '' : 'off'}`} onClick={() => setUploadVisible((v) => !v)}>
           <Icon name={uploadVisible ? 'user' : 'eyeOff'} size={18} />
           <span>{uploadVisible ? 'Everyone can see' : 'Private (only you & the host)'}</span>

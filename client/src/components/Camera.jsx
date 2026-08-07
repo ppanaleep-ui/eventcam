@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { FILMS, getFilm } from '../lib/filters.js';
-import { ASPECTS, getAspect, produceImages, produceFromImageFile, videoPoster, saveToDevice } from '../lib/capture.js';
+import { ASPECTS, getAspect, produceImages, produceFromImageFile, regrade, videoPoster, saveToDevice } from '../lib/capture.js';
 import { api } from '../lib/api.js';
 import Icon from './Icon.jsx';
 
@@ -49,6 +49,7 @@ export default function Camera({ eventId, guestName, defaultFilter, onUploaded, 
   const [fs, setFs] = useState(false); // immersive full-screen (no browser chrome)
   const [zoom, setZoom] = useState(1);
   const [zoomStops, setZoomStops] = useState([1, 2]);
+  const [regrading, setRegrading] = useState(false); // re-applying a film in review
   const hwZoomRef = useRef(false); // camera exposes an optical/HW zoom track
 
   const film = getFilm(filmId);
@@ -222,7 +223,7 @@ export default function Camera({ eventId, guestName, defaultFilter, onUploaded, 
     const captureAdjust = { ...adjust, zoom: hwZoomRef.current ? 1 : zoom, mirror: facing === 'user' };
     const result = await produceImages(video, video.videoWidth, video.videoHeight, film, aspect.ratio, captureAdjust);
     stopStream();
-    setShot({ kind: 'photo', ...result });
+    setShot({ kind: 'photo', ...result, filter: film.id });
   }
 
   function onShutter() {
@@ -345,7 +346,7 @@ export default function Camera({ eventId, guestName, defaultFilter, onUploaded, 
       } else {
         const result = await produceFromImageFile(file, film, adjust);
         stopStream();
-        setShot({ kind: 'photo', ...result });
+        setShot({ kind: 'photo', ...result, filter: film.id });
       }
     } catch {
       onToast?.('Couldn’t open this file');
@@ -356,6 +357,19 @@ export default function Camera({ eventId, guestName, defaultFilter, onUploaded, 
     if (shot?.videoUrl) URL.revokeObjectURL(shot.videoUrl);
     setShot(null);
     setProgress(null);
+  }
+  // Re-apply a different film to the photo in review (uses the kept raw frame).
+  async function chooseReviewFilm(id) {
+    if (!shot?.rawCanvas || shot.filter === id || regrading) return;
+    setRegrading(true);
+    try {
+      const r = await regrade(shot.rawCanvas, getFilm(id), adjust);
+      setShot((prev) => (prev ? { ...prev, ...r, filter: id } : prev));
+    } catch {
+      onToast?.('Could not apply that film');
+    } finally {
+      setRegrading(false);
+    }
   }
   async function saveShot() {
     if (!shot) return;
@@ -374,7 +388,7 @@ export default function Camera({ eventId, guestName, defaultFilter, onUploaded, 
     try {
       const dto = await api.uploadMedia(eventId, {
         full: shot.fullBlob, thumb: shot.thumbBlob, guestName, kind: shot.kind,
-        filter: shot.kind === 'photo' ? film.id : null, width: shot.width, height: shot.height,
+        filter: shot.kind === 'photo' ? (shot.filter || film.id) : null, width: shot.width, height: shot.height,
         duration: shot.duration, hidden: !visible, onProgress: setProgress,
       });
       onUploaded?.(dto);
@@ -397,6 +411,20 @@ export default function Camera({ eventId, guestName, defaultFilter, onUploaded, 
         <div className="cam-scrim bottom" />
 
         <div className="cam-bottom">
+          {shot.kind === 'photo' && shot.rawCanvas && (
+            <div className={`film-strip review-films ${regrading ? 'busy' : ''}`}>
+              {FILMS.map((f) => (
+                <button
+                  key={f.id}
+                  className={`film-chip ${f.id === shot.filter ? 'active' : ''}`}
+                  onClick={() => chooseReviewFilm(f.id)}
+                  disabled={progress !== null || regrading}
+                >
+                  {f.name}
+                </button>
+              ))}
+            </div>
+          )}
           <button className={`vis-toggle ${visible ? '' : 'off'}`} onClick={() => setVisible((v) => !v)} disabled={progress !== null}>
             <Icon name={visible ? 'user' : 'eyeOff'} size={18} />
             <span>{visible ? 'Everyone can see' : 'Private (only you & the host)'}</span>

@@ -80,6 +80,30 @@ export async function produceImages(source, sw, sh, film, ratio, opts) {
     width: outSize.w,
     height: outSize.h,
     previewUrl: fullCanvas.toDataURL('image/jpeg', FULL_Q),
+    rawCanvas: cropped, // ungraded, cropped frame — lets the review re-apply a different film
+  };
+}
+
+// Re-grade an already-cropped raw frame with a different film (for the review
+// screen's film picker). Returns the same shape as produceImages.
+export async function regrade(rawCanvas, film, opts) {
+  const w = rawCanvas.width;
+  const h = rawCanvas.height;
+  const fullCanvas = renderFilm(rawCanvas, w, h, film, opts);
+  const fullBlob = await canvasToBlob(fullCanvas, FULL_Q);
+  const t = fit(w, h, MAX_THUMB);
+  const thumbCanvas = document.createElement('canvas');
+  thumbCanvas.width = t.w;
+  thumbCanvas.height = t.h;
+  thumbCanvas.getContext('2d').drawImage(fullCanvas, 0, 0, t.w, t.h);
+  const thumbBlob = await canvasToBlob(thumbCanvas, THUMB_Q);
+  return {
+    fullBlob,
+    thumbBlob,
+    width: w,
+    height: h,
+    previewUrl: fullCanvas.toDataURL('image/jpeg', FULL_Q),
+    rawCanvas,
   };
 }
 

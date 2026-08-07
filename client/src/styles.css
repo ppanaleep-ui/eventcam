@@ -1282,6 +1282,18 @@ body.immersive .event { height: 100dvh; }
   color: #111;
   border-color: #fff;
 }
+/* Film strip inside the review screen — normal flow, not pinned to the bottom */
+.film-strip.review-films {
+  position: static;
+  left: auto; right: auto; bottom: auto;
+  padding: 0 2px 2px;
+}
+.film-strip.review-films.busy { opacity: 0.55; pointer-events: none; }
+/* Film chips inside the upload sheet */
+.up-films { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.up-films::-webkit-scrollbar { display: none; }
+.up-films .film-chip { background: #2e2233; border-color: #43334a; }
+.up-films .film-chip.active { background: #f2c8d7; color: #3a1f28; border-color: #f2c8d7; }
 
 .adjust-row {
   display: flex;
