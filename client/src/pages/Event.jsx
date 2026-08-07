@@ -187,6 +187,14 @@ export default function Event() {
     );
   }
 
+  // Album visibility for guests (hosts always see everything):
+  //  • gallery off  → hide the Album tab entirely
+  //  • reveal after → show the tab, but lock it until the event ends
+  const revealed = event.reveal !== 'after' || (event.endsAt && Date.now() >= event.endsAt);
+  const canSeeAlbumTab = isHost || event.guestsCanView !== false;
+  const albumLocked = !isHost && event.guestsCanView !== false && !revealed;
+  const activeTab = tab === 'album' && !canSeeAlbumTab ? 'camera' : tab;
+
   return (
     <div className="app">
       <div className="event">
@@ -208,11 +216,11 @@ export default function Event() {
           <div className="count-pill"><Icon name="images" size={15} /> {count}</div>
         </header>
 
-        <div className="tab-body" key={tab}>
-          {tab === 'camera' && (
-            <Camera eventId={id} guestName={guest} onUploaded={addPhoto} onToast={showToast} />
+        <div className="tab-body" key={activeTab}>
+          {activeTab === 'camera' && (
+            <Camera eventId={id} guestName={guest} defaultFilter={event.defaultFilter} onUploaded={addPhoto} onToast={showToast} />
           )}
-          {tab === 'album' && (
+          {activeTab === 'album' && (
             <div className="tab-anim">
               <Album
                 eventId={id}
@@ -222,6 +230,8 @@ export default function Event() {
                 isHost={isHost}
                 adminToken={adminToken}
                 guestName={guest}
+                locked={albumLocked}
+                revealAt={event.endsAt}
                 onDeleted={removePhoto}
                 onUpdate={updatePhoto}
                 onUploaded={addPhoto}
@@ -229,7 +239,7 @@ export default function Event() {
               />
             </div>
           )}
-          {tab === 'invite' && (
+          {activeTab === 'invite' && (
             <div className="tab-anim">
               <Invite event={event} isHost={isHost} adminToken={adminToken} onToast={showToast} />
             </div>
@@ -237,9 +247,9 @@ export default function Event() {
         </div>
 
         <nav className="tabbar glass">
-          <TabBtn active={tab === 'camera'} onClick={() => setTab('camera')} ico="camera" label="Camera" />
-          <TabBtn active={tab === 'album'} onClick={() => setTab('album')} ico="images" label="Album" />
-          <TabBtn active={tab === 'invite'} onClick={() => setTab('invite')} ico="qr" label="Invite" />
+          <TabBtn active={activeTab === 'camera'} onClick={() => setTab('camera')} ico="camera" label="Camera" />
+          {canSeeAlbumTab && <TabBtn active={activeTab === 'album'} onClick={() => setTab('album')} ico="images" label="Album" />}
+          <TabBtn active={activeTab === 'invite'} onClick={() => setTab('invite')} ico="qr" label="Invite" />
         </nav>
       </div>
 

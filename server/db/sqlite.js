@@ -92,14 +92,19 @@ export function createSqliteRepo() {
       addCol('hidden', 'INTEGER NOT NULL DEFAULT 0');
       addCol('like_count', 'INTEGER NOT NULL DEFAULT 0');
       addCol('comment_count', 'INTEGER NOT NULL DEFAULT 0');
-      // Migrate events for account ownership.
+      // Migrate events for account ownership + event settings.
       const eCols = new Set(db.prepare(`PRAGMA table_info(events)`).all().map((c) => c.name));
-      if (!eCols.has('owner_user_id')) db.exec(`ALTER TABLE events ADD COLUMN owner_user_id TEXT`);
+      const addECol = (name, decl) => { if (!eCols.has(name)) db.exec(`ALTER TABLE events ADD COLUMN ${name} ${decl}`); };
+      addECol('owner_user_id', 'TEXT');
+      addECol('default_filter', 'TEXT');
+      addECol('guests_can_view', 'INTEGER NOT NULL DEFAULT 1');
+      addECol('reveal', "TEXT NOT NULL DEFAULT 'instant'");
+      addECol('ends_at', 'INTEGER');
 
       stmts = {
         insertEvent: db.prepare(
-          `INSERT INTO events (id, name, host_name, admin_token, owner_user_id, created_at)
-           VALUES (@id, @name, @host_name, @admin_token, @owner_user_id, @created_at)`
+          `INSERT INTO events (id, name, host_name, admin_token, owner_user_id, created_at, default_filter, guests_can_view, reveal, ends_at)
+           VALUES (@id, @name, @host_name, @admin_token, @owner_user_id, @created_at, @default_filter, @guests_can_view, @reveal, @ends_at)`
         ),
         getEvent: db.prepare(`SELECT * FROM events WHERE id = ?`),
         insertPhoto: db.prepare(
@@ -176,6 +181,11 @@ export function createSqliteRepo() {
 
     async renameEvent(id, name) {
       db.prepare(`UPDATE events SET name = ? WHERE id = ?`).run(name, id);
+    },
+    async updateEventSettings(id, s) {
+      db.prepare(
+        `UPDATE events SET name = ?, default_filter = ?, guests_can_view = ?, reveal = ?, ends_at = ? WHERE id = ?`
+      ).run(s.name, s.default_filter, s.guests_can_view, s.reveal, s.ends_at, id);
     },
 
     async deleteEvent(id) {

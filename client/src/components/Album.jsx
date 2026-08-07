@@ -14,7 +14,7 @@ const FILTERS = [
   { id: 'video', label: 'Videos' },
 ];
 
-export default function Album({ eventId, photos, setPhotos, count, isHost, adminToken, guestName, onDeleted, onUpdate, onUploaded, onToast }) {
+export default function Album({ eventId, photos, setPhotos, count, isHost, adminToken, guestName, locked, revealAt, onDeleted, onUpdate, onUploaded, onToast }) {
   const [active, setActive] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [done, setDone] = useState(false);
@@ -370,6 +370,23 @@ export default function Album({ eventId, photos, setPhotos, count, isHost, admin
       </div>
     </div>
   );
+
+  // Gallery locked for guests (reveal-after not yet reached).
+  if (locked) {
+    return (
+      <div className="album" ref={albumRef}>
+        <div className="empty">
+          <div className="empty-ic"><Icon name="clock" size={30} /></div>
+          <b>Photos revealed after the event</b>
+          <span style={{ color: 'var(--muted)' }}>
+            {revealAt
+              ? `The album unlocks on ${new Date(revealAt).toLocaleString()}. Keep shooting — your photos are safe!`
+              : 'The host will reveal the album once the event ends. Keep shooting!'}
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   if (photos.length === 0) {
     return (

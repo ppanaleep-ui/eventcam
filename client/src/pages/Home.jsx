@@ -1,11 +1,9 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { api } from '../lib/api.js';
 import { authApi } from '../lib/authApi.js';
-import { setGuestName } from '../lib/guest.js';
-import { addMyEvent } from '../lib/admin.js';
 import { useAuth } from '../auth/AuthProvider.jsx';
 import Icon from '../components/Icon.jsx';
+import CreateEvent from './CreateEvent.jsx';
 
 export default function Home() {
   const { user, loading, refresh, logout } = useAuth();
@@ -125,51 +123,8 @@ function Dashboard({ user, onLogout }) {
         <Link to="/admin" className="pc-link">See all events / manage</Link>
       </div>
 
-      {creating && <CreateSheet onClose={() => setCreating(false)} />}
+      {creating && <CreateEvent onClose={() => setCreating(false)} />}
     </>
-  );
-}
-
-function CreateSheet({ onClose }) {
-  const [name, setName] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const navigate = useNavigate();
-
-  async function create(e) {
-    e.preventDefault();
-    setBusy(true);
-    setError('');
-    try {
-      const ev = await api.createEvent({ name: name.trim() || 'My event' });
-      addMyEvent({ id: ev.id, token: ev.adminToken, name: ev.name });
-      if (ev.hostName) setGuestName(ev.hostName);
-      navigate(`/e/${ev.id}?invite=1`);
-    } catch (err) {
-      setError(err.message);
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="pc-sheet-scrim" onClick={onClose}>
-      <form className="pc-sheet" onClick={(e) => e.stopPropagation()} onSubmit={create}>
-        <div className="pc-sheet-grip" />
-        <h2>Create new event</h2>
-        <p>Name your event and we’ll make a QR for guests to scan and join right away.</p>
-        <input
-          type="text"
-          placeholder="e.g. Karntida ♥ Krisada Wedding"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          maxLength={80}
-          autoFocus
-        />
-        {error && <p className="pc-err">{error}</p>}
-        <button className="pc-cta" disabled={busy}>{busy ? 'Creating…' : 'Create event'}</button>
-        <button type="button" className="pc-link" onClick={onClose}>Cancel</button>
-      </form>
-    </div>
   );
 }
 

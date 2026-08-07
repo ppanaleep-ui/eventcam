@@ -28,7 +28,35 @@ function publicEvent(e) {
     hostName: e.host_name,
     createdAt: Number(e.created_at),
     photoCount: e.photo_count,
+    defaultFilter: e.default_filter || null,
+    guestsCanView: e.guests_can_view == null ? true : !!e.guests_can_view,
+    reveal: e.reveal || 'instant', // 'instant' | 'after'
+    endsAt: e.ends_at ? Number(e.ends_at) : null,
   };
+}
+
+// Sanitize event settings from the request body, falling back to `base`.
+function parseSettings(b = {}, base = {}) {
+  const default_filter =
+    b.defaultFilter != null ? String(b.defaultFilter).trim().slice(0, 40) || null : base.default_filter ?? null;
+  const guests_can_view =
+    b.guestsCanView != null ? (b.guestsCanView ? 1 : 0) : base.guests_can_view == null ? 1 : base.guests_can_view;
+  const reveal = b.reveal === 'after' ? 'after' : b.reveal === 'instant' ? 'instant' : base.reveal || 'instant';
+  let ends_at = base.ends_at ?? null;
+  if ('endsAt' in b) {
+    const n = Number(b.endsAt);
+    ends_at = Number.isFinite(n) && n > 0 ? Math.round(n) : null;
+  }
+  return { default_filter, guests_can_view, reveal, ends_at };
+}
+
+// Whether a non-host guest may view the album right now.
+function guestsMaySee(e) {
+  if (!(e.guests_can_view == null ? true : !!e.guests_can_view)) return false;
+  if ((e.reveal || 'instant') === 'after') {
+    if (!e.ends_at || Date.now() < Number(e.ends_at)) return false; // revealed only after it ends
+  }
+  return true;
 }
 
 // Create an event — organizers only, and only once approved.
@@ -36,6 +64,7 @@ router.post('/', createLimiter, requireAuth, requireApproved, async (req, res) =
   const name = String(req.body?.name || '').trim().slice(0, 80) || 'Untitled Event';
   const hostName = String(req.body?.hostName || '').trim().slice(0, 60) || req.user.name || null;
 
+  const s = parseSettings(req.body);
   const event = {
     id: nanoid(10),
     name,
@@ -43,6 +72,7 @@ router.post('/', createLimiter, requireAuth, requireApproved, async (req, res) =
     admin_token: nanoid(24),
     owner_user_id: req.user.id,
     created_at: Date.now(),
+    ...s,
   };
   await db().createEvent(event);
 
@@ -151,17 +181,19 @@ router.patch('/:id/photos/:photoId/visibility', async (req, res) => {
   res.json(dto);
 });
 
-// Rename an event (host only).
+// Update an event's name and/or settings (host only).
 router.patch('/:id', async (req, res) => {
   const e = await db().getEvent(req.params.id);
   if (!e) return res.status(404).json({ error: 'Event not found' });
   if (!isHost(req, e)) return res.status(403).json({ error: 'Host only' });
 
-  const name = String(req.body?.name || '').trim().slice(0, 80);
+  const name = String(req.body?.name ?? e.name).trim().slice(0, 80);
   if (!name) return res.status(400).json({ error: 'Name required' });
-  await db().renameEvent(e.id, name);
+  const s = parseSettings(req.body, e);
+  await db().updateEventSettings(e.id, { name, ...s });
   broadcast(e.id, 'event', { name });
-  res.json({ ok: true, name });
+  const updated = { ...e, name, ...s };
+  res.json(publicEvent(updated));
 });
 
 // Delete an entire event and all its media (host only).

@@ -43,6 +43,10 @@ export async function createPostgresRepo() {
         );
       `);
       await q(`ALTER TABLE events ADD COLUMN IF NOT EXISTS owner_user_id TEXT`);
+      await q(`ALTER TABLE events ADD COLUMN IF NOT EXISTS default_filter TEXT`);
+      await q(`ALTER TABLE events ADD COLUMN IF NOT EXISTS guests_can_view INTEGER NOT NULL DEFAULT 1`);
+      await q(`ALTER TABLE events ADD COLUMN IF NOT EXISTS reveal TEXT NOT NULL DEFAULT 'instant'`);
+      await q(`ALTER TABLE events ADD COLUMN IF NOT EXISTS ends_at BIGINT`);
       await q(`
         CREATE TABLE IF NOT EXISTS photos (
           id         TEXT PRIMARY KEY,
@@ -97,9 +101,9 @@ export async function createPostgresRepo() {
 
     async createEvent(e) {
       await q(
-        `INSERT INTO events (id, name, host_name, admin_token, owner_user_id, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [e.id, e.name, e.host_name, e.admin_token, e.owner_user_id, e.created_at]
+        `INSERT INTO events (id, name, host_name, admin_token, owner_user_id, created_at, default_filter, guests_can_view, reveal, ends_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [e.id, e.name, e.host_name, e.admin_token, e.owner_user_id, e.created_at, e.default_filter, e.guests_can_view, e.reveal, e.ends_at]
       );
     },
 
@@ -191,6 +195,12 @@ export async function createPostgresRepo() {
 
     async renameEvent(id, name) {
       await q(`UPDATE events SET name = $1 WHERE id = $2`, [name, id]);
+    },
+    async updateEventSettings(id, s) {
+      await q(
+        `UPDATE events SET name = $1, default_filter = $2, guests_can_view = $3, reveal = $4, ends_at = $5 WHERE id = $6`,
+        [s.name, s.default_filter, s.guests_can_view, s.reveal, s.ends_at, id]
+      );
     },
 
     async deleteEvent(id) {

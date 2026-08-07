@@ -17,7 +17,7 @@ function pickVideoMime() {
   return '';
 }
 
-export default function Camera({ eventId, guestName, onUploaded, onToast }) {
+export default function Camera({ eventId, guestName, defaultFilter, onUploaded, onToast }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const recorderRef = useRef(null);
@@ -28,7 +28,7 @@ export default function Camera({ eventId, guestName, onUploaded, onToast }) {
 
   const [mode, setMode] = useState('photo');
   const [facing, setFacing] = useState('environment');
-  const [filmId, setFilmId] = useState('kodak');
+  const [filmId, setFilmId] = useState(defaultFilter || 'kodak'); // host's default; guests can change
   const [aspectId, setAspectId] = useState('2:3'); // default: 35mm portrait
   const [temp, setTemp] = useState(0);
   const [exposure, setExposure] = useState(0);

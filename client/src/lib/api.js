@@ -8,11 +8,11 @@ async function json(res) {
 }
 
 export const api = {
-  createEvent({ name, hostName }) {
+  createEvent({ name, hostName, defaultFilter, guestsCanView, reveal, endsAt }) {
     return fetch('/api/events', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, hostName }),
+      body: JSON.stringify({ name, hostName, defaultFilter, guestsCanView, reveal, endsAt }),
     }).then(json);
   },
 

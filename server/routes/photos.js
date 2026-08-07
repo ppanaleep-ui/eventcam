@@ -11,6 +11,16 @@ import { ownerId, isHost } from '../eventAuth.js';
 
 const router = Router();
 
+// Whether a non-host guest may view the album right now (gallery enabled, and
+// — for "reveal after" events — only once the event has ended).
+function guestsMaySee(e) {
+  if (!(e.guests_can_view == null ? true : !!e.guests_can_view)) return false;
+  if ((e.reveal || 'instant') === 'after') {
+    if (!e.ends_at || Date.now() < Number(e.ends_at)) return false;
+  }
+  return true;
+}
+
 const IMG_EXT = { 'image/png': 'png', 'image/webp': 'webp', 'image/jpeg': 'jpg' };
 const VID_EXT = { 'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov' };
 const isVideoMime = (m) => config.allowedVideoMime.includes(m);
@@ -120,9 +130,10 @@ router.post('/:id/photos', uploadLimiter, (req, res) => {
       await db().insertPhotoAndBump(photo);
 
       const dto = toDto(photo);
-      // Only broadcast public photos live. Hidden ones are added on the
-      // uploader's own device from this response; the host sees them on reload.
-      if (!hidden) broadcast(e.id, 'photo', dto);
+      // Only broadcast public photos live, and only when the album is currently
+      // viewable by guests (so "reveal after" / gallery-off events don't leak
+      // photos over the live stream). The host sees everything on reload.
+      if (!hidden && guestsMaySee(e)) broadcast(e.id, 'photo', dto);
       res.status(201).json(dto);
     } catch (e2) {
       await cleanup(req);
@@ -139,9 +150,17 @@ router.get('/:id/photos', async (req, res) => {
   const limit = Math.min(clampInt(req.query.limit) || config.pageSize, config.pageSize);
   const before = clampInt(req.query.before) || Number.MAX_SAFE_INTEGER;
 
+  const host = isHost(req, e);
+  // Guests can't load the album when the gallery is off or photos are still
+  // hidden until the event's reveal time.
+  if (!host && !guestsMaySee(e)) {
+    res.set('Cache-Control', 'no-cache');
+    return res.json({ items: [], nextCursor: null, total: e.photo_count, locked: true });
+  }
+
   const rows = await db().listPhotos(e.id, before, limit, {
     viewerId: ownerId(req),
-    isHost: isHost(req, e),
+    isHost: host,
   });
   const items = rows.map(toDto);
   const nextCursor = rows.length === limit ? Number(rows[rows.length - 1].created_at) : null;
