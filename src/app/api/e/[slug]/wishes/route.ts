@@ -4,6 +4,7 @@ import { saveImage, UploadError } from "@/lib/uploads";
 import { publish } from "@/lib/events-bus";
 import { notifyNewWish } from "@/lib/line";
 import { appUrl } from "@/lib/events";
+import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -11,6 +12,15 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { slug: string } },
 ) {
+  // Throttle: max 8 wishes / minute per IP per event.
+  const rl = checkRateLimit(`wish:${params.slug}:${clientIp(req)}`, 8, 60_000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "ส่งบ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่" },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+    );
+  }
+
   const event = await prisma.event.findUnique({ where: { slug: params.slug } });
   if (!event) {
     return NextResponse.json({ error: "ไม่พบงานนี้" }, { status: 404 });

@@ -24,17 +24,35 @@ to be printed as a keepsake **photobook**.
 - **Server-Sent Events** for real-time updates (in-process pub/sub — swap for Redis in multi-instance deploys)
 - Real integration code paths for **PromptPay** (self-contained), **EasySlip** slip verification, and the **LINE Messaging API**
 
+## 📚 คู่มือภาษาไทย (แบบละเอียด สำหรับคนไม่เคยทำ)
+
+อยู่ในโฟลเดอร์ [`docs/`](./docs):
+
+1. [เริ่มต้นใช้งาน + แก้ปัญหาที่พบบ่อย](./docs/01-getting-started.md)
+2. [เชื่อม LINE ให้แจ้งเตือนเข้ามือถือ](./docs/02-line-notify.md)
+3. [เปิดตรวจสอบสลิปอัตโนมัติ (EasySlip)](./docs/03-easyslip.md)
+4. [นำเว็บขึ้นออนไลน์ (Deploy)](./docs/04-deploy.md)
+5. [เช็คลิสต์วันงาน](./docs/05-event-day-checklist.md)
+
 ## 🚀 Getting started
 
 ```bash
 npm install
 cp .env.example .env      # then edit values
+npm run gen:secret        # generate a SESSION_SECRET, paste it into .env
 npm run db:migrate        # create the SQLite schema
 npm run db:seed           # optional: demo couple + event
 npm run dev               # http://localhost:3000
 ```
 
 The seed prints a demo login (`demo@photowish.app` / `password123`) and a guest/slideshow URL.
+
+### Run with Docker (one command)
+
+```bash
+cp .env.example .env      # set SESSION_SECRET + NEXT_PUBLIC_APP_URL
+docker compose up --build # http://localhost:3000 — data persists in volumes
+```
 
 ### Production
 
@@ -95,7 +113,8 @@ production at scale, point `saveImage` at S3/GCS and serve via signed URLs.
 ## 🔒 Notes
 
 - Guest submission endpoints are intentionally public (guests aren't logged in);
-  they validate input and cap sizes. Add rate-limiting / captcha before a real
-  large-scale event.
-- The SSE bus is per-process. For horizontally-scaled deployments, replace
-  `src/lib/events-bus.ts` with Redis pub/sub (the publish/subscribe surface is small).
+  they validate input, cap file sizes, and are **rate-limited per IP**
+  (`src/lib/rate-limit.ts`). Consider adding a captcha for very large public events.
+- Health probe at `/api/health` (checks DB connectivity) — used by the Docker healthcheck.
+- The SSE bus and rate limiter are per-process. For horizontally-scaled
+  deployments, back both with Redis (the publish/subscribe + check surfaces are small).
