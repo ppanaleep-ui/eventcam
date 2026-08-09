@@ -1,0 +1,113 @@
+// PhotoWish data model
+// SQLite for easy local dev; swap `provider` + DATABASE_URL for Postgres in prod.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// A couple's account. One owner logs in to manage their event(s).
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  displayName  String?
+  createdAt    DateTime @default(now())
+
+  events Event[]
+}
+
+// A single wedding event. The unit everything hangs off of.
+model Event {
+  id        String   @id @default(cuid())
+  slug      String   @unique // public, unguessable-ish; used in guest URLs
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  brideName String
+  groomName String
+  eventDate DateTime?
+  venue     String?
+  coverImageUrl String?
+  welcomeMessage String?
+
+  // Online envelope (PromptPay) config
+  envelopeEnabled Boolean @default(true)
+  promptPayId     String? // phone number or Thai national ID for PromptPay
+  promptPayName   String? // account holder name shown to guests
+
+  // Wish moderation: if true, wishes need approval before appearing on slideshow
+  moderateWishes Boolean @default(false)
+
+  // LINE Messaging API push notifications
+  lineChannelAccessToken String?
+  lineUserId             String? // destination userId / groupId to push to
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  wishes     Wish[]
+  envelopes  Envelope[]
+  media      Media[]
+
+  @@index([ownerId])
+}
+
+// A guest wish: a photo + a message.
+model Wish {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  guestName String
+  message   String
+  photoUrl  String?
+  status    String   @default("approved") // "approved" | "pending" | "hidden"
+
+  createdAt DateTime @default(now())
+
+  @@index([eventId, status])
+  @@index([eventId, createdAt])
+}
+
+// An online envelope: a money gift + transfer slip.
+model Envelope {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  guestName String
+  amount    Float // THB
+  message   String?
+  slipUrl   String?
+
+  // Slip verification result (via provider, if configured)
+  verifyStatus String  @default("unverified") // "unverified" | "verified" | "failed" | "duplicate"
+  verifyRef    String? // transaction reference returned by provider
+  verifyRaw    String? // raw JSON payload from the provider, for auditing
+
+  createdAt DateTime @default(now())
+
+  @@index([eventId, createdAt])
+  @@index([eventId, verifyStatus])
+}
+
+// Prewedding / atmosphere / cover media used by the slideshow and photobook.
+model Media {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  url       String
+  kind      String   @default("prewedding") // "prewedding" | "atmosphere" | "cover"
+  caption   String?
+  sortOrder Int      @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([eventId, kind])
+}
