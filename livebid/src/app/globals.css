@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-ink-900 text-slate-100 antialiased;
+  background-image:
+    radial-gradient(1100px 500px at 15% -10%, rgba(63, 240, 184, 0.10), transparent 60%),
+    radial-gradient(900px 500px at 90% 0%, rgba(255, 61, 107, 0.10), transparent 55%);
+  background-attachment: fixed;
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-white/10 bg-ink-800/80 backdrop-blur;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold
+           transition disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-neon-500 text-ink-900 hover:bg-neon-400;
+  }
+  .btn-hot {
+    @apply btn bg-hot-500 text-white hover:bg-hot-400;
+  }
+  .btn-ghost {
+    @apply btn border border-white/15 bg-white/5 text-slate-100 hover:bg-white/10;
+  }
+  .input {
+    @apply w-full rounded-xl border border-white/10 bg-ink-700 px-3.5 py-2.5 text-sm text-slate-100
+           placeholder:text-slate-500 focus:border-neon-500 focus:outline-none focus:ring-1 focus:ring-neon-500;
+  }
+  .label {
+    @apply mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1
+           text-xs font-medium text-slate-300;
+  }
+  .money {
+    @apply tabular-nums;
+  }
+}
+
+/* The chat column scrolls on its own; keep the scrollbar unobtrusive. */
+.scroll-thin::-webkit-scrollbar { width: 6px; }
+.scroll-thin::-webkit-scrollbar-thumb { @apply rounded-full bg-white/15; }
+.scroll-thin::-webkit-scrollbar-track { background: transparent; }
