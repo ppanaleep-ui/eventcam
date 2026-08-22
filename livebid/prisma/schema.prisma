@@ -1,0 +1,294 @@
+// LiveBid data model — live shopping / auctions with an internal wallet.
+//
+// SQLite for easy local dev; swap `provider` + DATABASE_URL for Postgres in
+// prod (no other change needed — no SQLite-specific types are used).
+//
+// MONEY: every amount is an integer in the smallest currency unit (satang).
+// ฿1,250.50 is stored as 125050. Never use floats for money.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  handle       String   @unique // @name shown in chat and on the seller page
+  passwordHash String
+  displayName  String
+  avatarEmoji  String   @default("🙂")
+  bio          String?
+  isSeller     Boolean  @default(false)
+  isAdmin      Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  wallet       Wallet?
+  shows        Show[]        @relation("SellerShows")
+  bids         Bid[]
+  holds        Hold[]
+  messages     ChatMessage[]
+  topUps       TopUp[]
+  withdrawals  Withdrawal[]
+  purchases    Order[]       @relation("BuyerOrders")
+  sales        Order[]       @relation("SellerOrders")
+  wonListings  Listing[]     @relation("ListingWinner")
+  leadingBids  Listing[]     @relation("ListingTopBidder")
+}
+
+// ---------------------------------------------------------------------------
+// Wallet
+// ---------------------------------------------------------------------------
+
+// One wallet per user. Three buckets, all in satang:
+//   available — spendable right now
+//   held      — reserved against live bids (still the buyer's money)
+//   pending   — sale proceeds in escrow, released when the order completes
+// The invariant `available >= 0 && held >= 0 && pending >= 0` is enforced by
+// every mutation in src/lib/wallet.ts, which is the ONLY place these move.
+model Wallet {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  available Int      @default(0)
+  held      Int      @default(0)
+  pending   Int      @default(0)
+  currency  String   @default("THB")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  entries   LedgerEntry[]
+}
+
+// Append-only ledger. Every satang that moves gets a row — the wallet balances
+// above are a materialised view of this table (see `npm run db:audit`).
+//
+// kind:      TOPUP | HOLD | HOLD_RELEASE | PURCHASE | SALE | FEE | REFUND
+//            | PAYOUT_PENDING | PAYOUT_RELEASE | WITHDRAW | WITHDRAW_REFUND
+// bucket:    AVAILABLE | HELD | PENDING  (which bucket moved)
+// amount:    signed; positive credits the bucket, negative debits it
+model LedgerEntry {
+  id        String   @id @default(cuid())
+  walletId  String
+  wallet    Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  kind      String
+  bucket    String
+  amount    Int
+  balanceAfter Int   // balance of `bucket` right after this entry
+
+  refType   String?  // "listing" | "order" | "topup" | "withdrawal"
+  refId     String?
+  note      String?
+
+  createdAt DateTime @default(now())
+
+  @@index([walletId, createdAt])
+  @@index([refType, refId])
+}
+
+// A wallet top-up. Money enters the system here (PromptPay transfer + slip).
+// status: PENDING | COMPLETED | REJECTED
+model TopUp {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  amount     Int
+  method     String   @default("PROMPTPAY") // PROMPTPAY | DEMO
+  reference  String   @unique // shown on the QR page so the slip can be matched
+  slipUrl    String?
+  status     String   @default("PENDING")
+  reviewNote String?
+
+  createdAt   DateTime @default(now())
+  completedAt DateTime?
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+// A cash-out request. Money leaves the system here.
+// status: PENDING | PAID | REJECTED
+model Withdrawal {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  amount      Int
+  bankName    String
+  accountName String
+  accountNo   String
+  status      String   @default("PENDING")
+  reviewNote  String?
+
+  createdAt DateTime @default(now())
+  paidAt    DateTime?
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// Live shows
+// ---------------------------------------------------------------------------
+
+// status: SCHEDULED | LIVE | ENDED
+model Show {
+  id          String   @id @default(cuid())
+  sellerId    String
+  seller      User     @relation("SellerShows", fields: [sellerId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+  category    String   @default("Collectibles")
+  coverEmoji  String   @default("📦")
+  // Optional embeddable player URL (YouTube/Twitch/HLS page). Empty renders the
+  // built-in placeholder stage — the rest of the app works either way.
+  streamUrl   String?
+
+  status      String   @default("SCHEDULED")
+  scheduledAt DateTime?
+  startedAt   DateTime?
+  endedAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  listings Listing[]
+  messages ChatMessage[]
+
+  @@index([status, scheduledAt])
+  @@index([sellerId])
+}
+
+// An item in a show. Either an AUCTION (timed, bids) or BUY_NOW (fixed price).
+// status: QUEUED | ACTIVE | SOLD | UNSOLD | CANCELLED
+model Listing {
+  id          String   @id @default(cuid())
+  showId      String
+  show        Show     @relation(fields: [showId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+  photoUrl    String?
+  emoji       String   @default("🎁")
+
+  type         String  @default("AUCTION")
+  startPrice   Int     @default(100)   // auctions: opening bid
+  buyNowPrice  Int?                    // BUY_NOW price (required for BUY_NOW)
+  minIncrement Int     @default(100)
+  shippingFee  Int     @default(0)
+  durationSec  Int     @default(30)    // auction length once started
+
+  status      String   @default("QUEUED")
+  position    Int      @default(0)
+  startedAt   DateTime?
+  endsAt      DateTime?
+  settledAt   DateTime?
+
+  topBid      Int      @default(0)
+  topBidderId String?
+  topBidder   User?    @relation("ListingTopBidder", fields: [topBidderId], references: [id])
+
+  soldPrice   Int?
+  winnerId    String?
+  winner      User?    @relation("ListingWinner", fields: [winnerId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bids  Bid[]
+  holds Hold[]
+  order Order?
+
+  @@index([showId, position])
+  @@index([status, endsAt])
+}
+
+model Bid {
+  id        String   @id @default(cuid())
+  listingId String
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  amount    Int
+  createdAt DateTime @default(now())
+
+  @@index([listingId, amount])
+}
+
+// A reservation of a bidder's wallet balance while their bid is live.
+// Exactly one ACTIVE hold per (listing, user).
+// status: ACTIVE | RELEASED | CAPTURED
+model Hold {
+  id        String   @id @default(cuid())
+  listingId String
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  amount    Int
+  status    String   @default("ACTIVE")
+
+  createdAt  DateTime @default(now())
+  resolvedAt DateTime?
+
+  @@unique([listingId, userId])
+  @@index([status])
+}
+
+// A completed purchase. Buyer's money is captured at creation and sits in the
+// seller's `pending` bucket until the buyer confirms delivery.
+// status: PAID | SHIPPED | COMPLETED | REFUNDED
+model Order {
+  id        String   @id @default(cuid())
+  listingId String   @unique
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  buyerId  String
+  buyer    User     @relation("BuyerOrders", fields: [buyerId], references: [id])
+  sellerId String
+  seller   User     @relation("SellerOrders", fields: [sellerId], references: [id])
+
+  itemPrice    Int
+  shippingFee  Int
+  platformFee  Int
+  total        Int  // itemPrice + shippingFee, charged to the buyer
+  sellerNet    Int  // total - platformFee, escrowed then paid to the seller
+
+  status       String   @default("PAID")
+  trackingNo   String?
+  shippingAddress String?
+  shippedAt    DateTime?
+  completedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([buyerId, createdAt])
+  @@index([sellerId, createdAt])
+}
+
+// kind: CHAT | SYSTEM  (SYSTEM = bid/sale announcements rendered inline)
+model ChatMessage {
+  id     String @id @default(cuid())
+  showId String
+  show   Show   @relation(fields: [showId], references: [id], onDelete: Cascade)
+  userId String?
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  kind   String @default("CHAT")
+  text   String
+
+  createdAt DateTime @default(now())
+
+  @@index([showId, createdAt])
+}
