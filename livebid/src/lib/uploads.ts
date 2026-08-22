@@ -6,7 +6,12 @@ import crypto from "crypto";
 // Uploaded files live OUTSIDE Next's `public/` dir because `next start` only
 // serves public files that existed at startup — runtime uploads there would
 // 404. They are streamed back through /api/files/[...path] instead.
-export const STORAGE_DIR = path.join(process.cwd(), "storage", "uploads");
+//
+// On a container host the working directory is wiped on every deploy, so point
+// STORAGE_DIR at a mounted volume (see docker-compose.yml / the deploy docs).
+export const STORAGE_DIR = process.env.STORAGE_DIR
+  ? path.resolve(process.env.STORAGE_DIR)
+  : path.join(process.cwd(), "storage", "uploads");
 
 const ALLOWED_IMAGE_TYPES: Record<string, string> = {
   "image/jpeg": "jpg",

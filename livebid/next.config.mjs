@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Everything is rendered per-request (live prices); no static export.
+  poweredByHeader: false,
   // Type-checking still runs during build; ESLint config is optional here.
   eslint: { ignoreDuringBuilds: true },
   // Product photos and top-up slips can be a few MB.

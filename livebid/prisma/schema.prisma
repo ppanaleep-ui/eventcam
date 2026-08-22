@@ -1,7 +1,7 @@
 // LiveBid data model — live shopping / auctions with an internal wallet.
 //
-// SQLite for easy local dev; swap `provider` + DATABASE_URL for Postgres in
-// prod (no other change needed — no SQLite-specific types are used).
+// PostgreSQL in development and in production — the same engine both sides,
+// so a migration that works locally works on the host.
 //
 // MONEY: every amount is an integer in the smallest currency unit (satang).
 // ฿1,250.50 is stored as 125050. Never use floats for money.
@@ -11,7 +11,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

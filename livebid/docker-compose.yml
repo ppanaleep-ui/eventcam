@@ -1,0 +1,42 @@
+# One command to run LiveBid with its database:  docker compose up --build
+# App on http://localhost:3000 — then seed demo data with:
+#   docker compose exec app npx prisma db seed
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: livebid
+      POSTGRES_PASSWORD: livebid
+      POSTGRES_DB: livebid
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U livebid"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://livebid:livebid@db:5432/livebid?schema=public
+      # Change this before exposing the app to anyone else.
+      SESSION_SECRET: change-me-to-a-long-random-string-please
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      PLATFORM_FEE_PERCENT: "10"
+      PROMPTPAY_ID: "0812345678"
+      AUTO_APPROVE_TOPUP: "false"
+      ADMIN_EMAILS: admin@livebid.app
+      STORAGE_DIR: /data/uploads
+    ports:
+      - "3000:3000"
+    volumes:
+      # Product photos and top-up slips survive redeploys here.
+      - uploads:/data/uploads
+
+volumes:
+  db-data:
+  uploads:

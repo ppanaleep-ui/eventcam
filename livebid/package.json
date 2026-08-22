@@ -2,11 +2,11 @@
   "name": "livebid",
   "version": "0.1.0",
   "private": true,
-  "description": "LiveBid — live shopping & auction marketplace with a built-in wallet",
+  "description": "LiveBid \u2014 live shopping & auction marketplace with a built-in wallet",
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma migrate deploy && next build",
-    "start": "next start",
+    "build": "prisma generate && next build",
+    "start": "prisma migrate deploy && next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate",
@@ -15,7 +15,9 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "db:audit": "tsx scripts/audit.ts",
-    "test:flow": "DATABASE_URL=\"file:./test.db\" prisma db push --skip-generate --accept-data-loss && DATABASE_URL=\"file:./test.db\" tsx scripts/test-wallet-flow.ts"
+    "test:flow": "bash scripts/test-flow.sh",
+    "start:local": "next start",
+    "deploy:migrate": "prisma migrate deploy"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -25,11 +27,13 @@
     "bcryptjs": "^2.4.3",
     "jose": "^5.9.6",
     "next": "14.2.15",
+    "prisma": "^5.22.0",
     "promptpay-qr": "^0.5.0",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "server-only": "^0.0.1",
+    "tsx": "^4.19.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -40,9 +44,7 @@
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.47",
-    "prisma": "^5.22.0",
     "tailwindcss": "^3.4.14",
-    "tsx": "^4.19.1",
     "typescript": "^5.6.3"
   }
 }

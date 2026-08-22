@@ -1,0 +1,40 @@
+# Render blueprint — New → Blueprint → point at this repo, set the root
+# directory to `livebid`, and Render creates the database, the disk for
+# uploads and the web service in one go.
+services:
+  - type: web
+    name: livebid
+    runtime: node
+    rootDir: livebid
+    plan: starter # SSE needs a always-on instance; free instances sleep
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start # runs prisma migrate deploy first
+    healthCheckPath: /api/health
+    disk:
+      name: uploads
+      mountPath: /data/uploads
+      sizeGB: 1
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: livebid-db
+          property: connectionString
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: STORAGE_DIR
+        value: /data/uploads
+      - key: PLATFORM_FEE_PERCENT
+        value: "10"
+      - key: AUTO_APPROVE_TOPUP
+        value: "false"
+      - key: PROMPTPAY_ID
+        sync: false # your PromptPay number
+      - key: ADMIN_EMAILS
+        sync: false # e-mails that get /admin
+      - key: NEXT_PUBLIC_APP_URL
+        sync: false # https://<your-service>.onrender.com
+
+databases:
+  - name: livebid-db
+    databaseName: livebid
+    user: livebid

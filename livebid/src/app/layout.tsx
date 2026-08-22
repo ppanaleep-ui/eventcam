@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   title: "LiveBid — live shopping & auctions",
   description:
     "Watch live shows, bid in real time and pay straight from your LiveBid wallet.",
+  icons: { icon: "/favicon.svg" },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
