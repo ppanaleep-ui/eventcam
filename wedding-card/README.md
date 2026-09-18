@@ -4,38 +4,43 @@ An animated digital version of the printed invitation for **ปณาลี (ส
 and **สหรัฐ (ฟาฮัต) พึ่งและ**, 13 December 2569 (2026) at Moonstar Convention Hall.
 
 The concept: **receiving the card should feel like receiving flowers.** A sealed
-envelope arrives, the wax seal lifts, petals scatter, and calla lilies bloom out of
-the cover as the card opens.
+envelope arrives, the wax seal breaks along the flap, the card slides out, and the
+paper calla lilies bloom across the cover.
+
+## The artwork is the real card
+
+Nothing here is redrawn. `art/` holds the couple's own printed artwork, cut out of
+the supplied scans and mockups:
+
+| File | Source |
+| --- | --- |
+| `cover-front.webp`, `cover-back.webp` | the cover scan, split at the fold |
+| `inside-left.webp`, `inside-right.webp` | the inside spread, split at the fold |
+| `env-body.webp`, `env-flap.webp` | the envelope photo, split along the flap seam so the flap can hinge — the wax seal breaks across that seam exactly as it would in the hand |
+| `lily.webp` | the paper calla lily layer, masked out of the mockup photograph |
+
+`art/build.py` regenerates all of them from the original images.
 
 ## How it runs
 
-One self-contained file — no build step, no dependencies:
+One self-contained page — no build step, no dependencies:
 
 ```bash
 open wedding-card/index.html          # or serve the folder from any static host
 ```
 
-The only external requests are Google Fonts (Parisienne, Cormorant Garamond,
-Trirong, Sarabun); everything else — artwork, animation, layout — is inline.
+The only external requests are the image files beside it and Google Fonts
+(Sarabun, Cormorant Garamond, Parisienne) for the interface text around the card.
 
 ## The three scenes
 
 | Scene | What happens |
 | --- | --- |
-| **Envelope** | Sage-bordered envelope with a copper wax seal (P&S monogram). Tap: the seal lifts away, the flap swings back, the card rises out, petals burst |
-| **Cover** | The die-cut ornate frame draws itself in, calla lilies bloom up from the bottom-left, `Panalee & Saharat · #FaFonPorjai` |
-| **Inside** | The cover swings open on a real 3D hinge (its reverse carries the P&S monogram), revealing the bifold spread: invitation on the left, wedding timeline on the right |
+| **Envelope** | Tap: the flap swings back on a 3D hinge, splitting the wax seal, and the card slides up out of the envelope |
+| **Cover** | The card arrives full size and the calla lilies bloom up from the bottom-left, settling where they sit on the printed card |
+| **Inside** | The cover swings open on its spine — its reverse carrying the P&S monogram — revealing the invitation and the wedding timeline |
 
-A canvas layer drifts rose petals across every scene, and each transition
-releases a burst of them.
-
-## Faithful to the print
-
-All artwork is hand-built SVG matched to the printed card: the scalloped die-cut
-frame with its vine, roses and buds; the calla lily cluster; the ribbon oval and
-bouquet on the invitation leaf; and the seven hand-drawn timeline icons
-(nikah couple, ring box, place setting, dove, toast, camera, car, cat).
-Text, names, times and the embossed damask ground follow the printed card exactly.
+A canvas layer drifts rose petals through every scene, with a burst at each step.
 
 ## Beyond the paper
 
@@ -45,9 +50,9 @@ and a share button for passing the card on.
 
 ## Notes
 
-- Responsive: the bifold opens as a true two-page spread from 860px up, and stacks
+- Responsive: the bifold opens as a true two-page spread from 880px up, and stacks
   into one scrolling column on phones.
-- `prefers-reduced-motion` is respected — scenes still advance, but the ambient
-  petals, bursts and long transitions are switched off.
-- Layout is single-theme by design: this is a letterpress invitation, so every
-  colour is painted explicitly rather than following the viewer's dark mode.
+- `prefers-reduced-motion` is respected — scenes still advance, but the petals,
+  bursts and long transitions are switched off.
+- Single-theme by design: this is a letterpress invitation, so every colour is
+  painted explicitly rather than following the viewer's dark mode.
