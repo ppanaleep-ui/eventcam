@@ -15,7 +15,9 @@ services:
     name: eventcam
     runtime: docker
     dockerfilePath: ./Dockerfile
-    plan: standard # ~2 GB RAM / 1 CPU. Use `pro` (4 GB) for a 2,000-guest event.
+    plan: starter # ~512 MB RAM / 0.5 CPU — cheapest paid plan, for small/test use.
+    # For a big event, bump this to `standard` (2 GB) or `pro` (4 GB) just for the
+    # event, then drop back to `starter` afterwards (Render bills by the day).
     region: singapore # closest region to Thailand; change if you prefer
     healthCheckPath: /healthz
     autoDeploy: true # redeploys automatically when you push to the branch
